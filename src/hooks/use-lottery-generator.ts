@@ -23,6 +23,8 @@ export function useLotteryGenerator() {
   const workersRef = useRef<Worker[]>([]);
   const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef(0);
+  /** Incrementado em start/stop para ignorar mensagens de workers terminados ou cancelados. */
+  const generationIdRef = useRef(0);
 
   const cleanup = useCallback(() => {
     workersRef.current.forEach((w) => w.terminate());
@@ -33,9 +35,29 @@ export function useLotteryGenerator() {
     }
   }, []);
 
+  const stop = useCallback(() => {
+    generationIdRef.current += 1;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setElapsedMs(performance.now() - startTimeRef.current);
+    workersRef.current.forEach((w) => w.terminate());
+    workersRef.current = [];
+    setWorkers((prev) =>
+      prev.map((w) => ({
+        ...w,
+        status: w.status === 'done' ? 'done' : ('cancelled' as const),
+      }))
+    );
+    setStatus('cancelled');
+  }, []);
+
   const start = useCallback(
     (config: GeneratorConfig) => {
       cleanup();
+      generationIdRef.current += 1;
+      const genId = generationIdRef.current;
       setStatus('running');
       setResult(null);
       setElapsedMs(0);
@@ -77,6 +99,7 @@ export function useLotteryGenerator() {
         const assignedGames = gamesPerWorker + (i < remainder ? 1 : 0);
 
         worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+          if (generationIdRef.current !== genId) return;
           const msg = e.data;
           if (msg.type === 'progress') {
             workerStatesLocal[msg.workerId] = {
@@ -103,6 +126,7 @@ export function useLotteryGenerator() {
 
             completedCount++;
             if (completedCount === workerCount) {
+              if (generationIdRef.current !== genId) return;
               const totalElapsed = performance.now() - startTimeRef.current;
               if (timerRef.current) {
                 clearInterval(timerRef.current);
@@ -128,6 +152,7 @@ export function useLotteryGenerator() {
         };
 
         worker.onerror = () => {
+          if (generationIdRef.current !== genId) return;
           workerStatesLocal[i] = { ...workerStatesLocal[i], status: 'error' };
           setWorkers([...workerStatesLocal]);
           setStatus('error');
@@ -141,8 +166,10 @@ export function useLotteryGenerator() {
           minNumber: mode.minNumber,
           maxNumber: mode.maxNumber,
           numbersPerGame: mode.numbersPerGame,
+          gamesPerBet: mode.gamesPerBet,
           totalGames: assignedGames,
           batchSize,
+          gameKind: mode.gameKind ?? 'combination',
         });
       }
     },
@@ -170,6 +197,7 @@ export function useLotteryGenerator() {
     totalProcessed,
     totalTarget,
     start,
+    stop,
     reset,
   };
 }

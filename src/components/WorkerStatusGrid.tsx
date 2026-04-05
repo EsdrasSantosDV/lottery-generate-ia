@@ -12,6 +12,7 @@ const statusLabels: Record<string, string> = {
   running: 'Processando',
   done: 'Concluído',
   error: 'Erro',
+  cancelled: 'Interrompido',
 };
 
 const statusColors: Record<string, string> = {
@@ -19,6 +20,7 @@ const statusColors: Record<string, string> = {
   running: 'bg-info/10 text-info border-info/30',
   done: 'bg-success/10 text-success border-success/30',
   error: 'bg-destructive/10 text-destructive border-destructive/30',
+  cancelled: 'bg-muted text-muted-foreground border-border',
 };
 
 export function WorkerStatusGrid({ workers }: WorkerStatusGridProps) {

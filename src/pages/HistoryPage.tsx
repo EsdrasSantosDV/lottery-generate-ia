@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
-import { getHistory, clearHistory, formatNumber, formatDuration, getTopNumbers, getBottomNumbers } from '@/lib/lottery-utils';
-import type { HistoryEntry } from '@/lib/lottery-types';
+import {
+  getHistory,
+  clearHistory,
+  formatNumber,
+  formatDuration,
+  formatLotteryDigitLabel,
+} from '@/lib/lottery-utils';
+import { LOTTERY_MODES, type HistoryEntry } from '@/lib/lottery-types';
 import { useAppState } from '@/contexts/AppContext';
 import { NumberBadge } from '@/components/NumberBadge';
 import { Button } from '@/components/ui/button';
@@ -62,7 +68,9 @@ export function HistoryPage() {
       </div>
 
       <div className="space-y-3">
-        {history.map((entry) => (
+        {history.map((entry) => {
+          const mode = LOTTERY_MODES.find((m) => m.id === entry.modeId) ?? LOTTERY_MODES[0];
+          return (
           <div
             key={entry.id}
             className="bg-card rounded-lg border border-border p-4 hover:shadow-elevated transition-all"
@@ -84,7 +92,10 @@ export function HistoryPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-              <span>{formatNumber(entry.totalGames)} jogos</span>
+              <span>
+                {formatNumber(entry.totalGames)}{' '}
+                {(LOTTERY_MODES.find((m) => m.id === entry.modeId)?.gamesPerBet ?? 1) > 1 ? 'apostas' : 'jogos'}
+              </span>
               <span>{entry.workerCount} workers</span>
               <span>{formatDuration(entry.elapsedMs)}</span>
             </div>
@@ -94,23 +105,38 @@ export function HistoryPage() {
                 <div>
                   <h4 className="text-sm font-medium text-foreground mb-2">Mais Frequentes</h4>
                   <div className="flex flex-wrap gap-2">
-                    {entry.topNumbers.slice(0, 6).map((item) => (
-                      <NumberBadge key={item.number} number={item.number} count={item.count} highlight="top" size="sm" />
+                    {entry.topNumbers.slice(0, mode.numbersPerGame).map((item) => (
+                      <NumberBadge
+                        key={item.number}
+                        number={item.number}
+                        displayValue={formatLotteryDigitLabel(item.number, mode)}
+                        count={item.count}
+                        highlight="top"
+                        size="sm"
+                      />
                     ))}
                   </div>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-foreground mb-2">Menos Frequentes</h4>
                   <div className="flex flex-wrap gap-2">
-                    {entry.bottomNumbers.slice(0, 6).map((item) => (
-                      <NumberBadge key={item.number} number={item.number} count={item.count} highlight="bottom" size="sm" />
+                    {entry.bottomNumbers.slice(0, mode.numbersPerGame).map((item) => (
+                      <NumberBadge
+                        key={item.number}
+                        number={item.number}
+                        displayValue={formatLotteryDigitLabel(item.number, mode)}
+                        count={item.count}
+                        highlight="bottom"
+                        size="sm"
+                      />
                     ))}
                   </div>
                 </div>
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

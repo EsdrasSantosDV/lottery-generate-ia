@@ -8,7 +8,7 @@ import { saveToHistory, formatNumber, formatDuration } from '@/lib/lottery-utils
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
-import { Play, RotateCcw, Cpu, Hash, Timer, Zap } from 'lucide-react';
+import { Play, RotateCcw, Hash, Timer, Zap, Square } from 'lucide-react';
 
 const GAME_PRESETS = [1000, 10000, 100000, 500000, 1000000, 5000000];
 
@@ -18,11 +18,15 @@ export function GeneratorPage() {
   const [workerCount, setWorkerCount] = useState(4);
   const maxWorkers = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4;
 
-  const { status, workers, result, elapsedMs, overallProgress, totalProcessed, totalTarget, start, reset } =
+  const { status, workers, result, elapsedMs, overallProgress, totalProcessed, totalTarget, start, stop, reset } =
     useLotteryGenerator();
 
   const handleStart = () => {
     start({ mode: selectedMode, totalGames, workerCount });
+  };
+
+  const handleStop = () => {
+    stop();
   };
 
   const handleReset = () => {
@@ -46,7 +50,7 @@ export function GeneratorPage() {
       </div>
 
       {/* Config */}
-      <div className="bg-card rounded-lg border border-border p-6 space-y-6">
+      <div className="bg-card rounded-lg border border-border p-4 space-y-6 sm:p-6">
         <div>
           <label className="text-sm font-medium text-foreground mb-3 block">Modalidade</label>
           <LotterySelector />
@@ -54,14 +58,21 @@ export function GeneratorPage() {
 
         <div>
           <label className="text-sm font-medium text-foreground mb-2 block">
-            Quantidade de Jogos: <span className="text-primary font-bold">{formatNumber(totalGames)}</span>
+            {selectedMode.gamesPerBet > 1 ? 'Quantidade de Apostas' : 'Quantidade de Jogos'}:{' '}
+            <span className="text-primary font-bold">{formatNumber(totalGames)}</span>
           </label>
+          {selectedMode.gamesPerBet > 1 && (
+            <p className="text-xs text-muted-foreground mb-2">
+              Cada aposta gera {selectedMode.gamesPerBet} jogos de {selectedMode.numbersPerGame} números.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2 mb-3">
             {GAME_PRESETS.map((preset) => (
               <button
                 key={preset}
+                type="button"
                 onClick={() => setTotalGames(preset)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                className={`min-h-[44px] rounded-md border px-3 py-2 text-sm font-medium transition-colors md:min-h-0 md:py-1.5 md:text-xs ${
                   totalGames === preset
                     ? 'gradient-primary text-primary-foreground border-transparent'
                     : 'bg-muted text-muted-foreground border-border hover:border-primary/40'
@@ -76,7 +87,7 @@ export function GeneratorPage() {
             type="number"
             value={totalGames}
             onChange={(e) => setTotalGames(Math.max(1, parseInt(e.target.value) || 0))}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm"
             disabled={status === 'running'}
             min={1}
             max={10000000}
@@ -98,16 +109,25 @@ export function GeneratorPage() {
           />
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Button
             onClick={handleStart}
             disabled={status === 'running'}
-            className="gradient-primary text-primary-foreground hover:opacity-90"
+            className="gradient-primary text-primary-foreground hover:opacity-90 w-full sm:w-auto"
           >
             <Play className="h-4 w-4 mr-2" />
             Iniciar Geração
           </Button>
-          <Button onClick={handleReset} variant="outline" disabled={status === 'running'}>
+          <Button
+            onClick={handleStop}
+            variant="destructive"
+            disabled={status !== 'running'}
+            className="w-full disabled:opacity-50 sm:w-auto"
+          >
+            <Square className="h-4 w-4 mr-2 fill-current" />
+            Parar
+          </Button>
+          <Button onClick={handleReset} variant="outline" disabled={status === 'running'} className="w-full sm:w-auto">
             <RotateCcw className="h-4 w-4 mr-2" />
             Resetar
           </Button>
@@ -125,11 +145,19 @@ export function GeneratorPage() {
                   status === 'running'
                     ? 'bg-info/10 text-info'
                     : status === 'done'
-                    ? 'bg-success/10 text-success'
-                    : 'bg-destructive/10 text-destructive'
+                      ? 'bg-success/10 text-success'
+                      : status === 'cancelled'
+                        ? 'bg-muted text-muted-foreground'
+                        : 'bg-destructive/10 text-destructive'
                 }`}
               >
-                {status === 'running' ? 'Em andamento' : status === 'done' ? 'Concluído' : 'Erro'}
+                {status === 'running'
+                  ? 'Em andamento'
+                  : status === 'done'
+                    ? 'Concluído'
+                    : status === 'cancelled'
+                      ? 'Cancelado'
+                      : 'Erro'}
               </span>
             </div>
             <Progress value={overallProgress} className="h-2" />
@@ -159,12 +187,21 @@ export function GeneratorPage() {
 
           <WorkerStatusGrid workers={workers} />
 
+          {status === 'cancelled' && (
+            <p className="text-sm text-muted-foreground">
+              A geração foi interrompida; nenhum resultado parcial foi salvo. Use &quot;Resetar&quot; ou inicie de novo.
+            </p>
+          )}
+
           {status === 'done' && (
-            <div className="flex gap-3">
-              <Button onClick={() => setActiveTab('analysis')} className="gradient-primary text-primary-foreground">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                onClick={() => setActiveTab('analysis')}
+                className="gradient-primary w-full text-primary-foreground sm:w-auto"
+              >
                 Ver Análise Estatística
               </Button>
-              <Button onClick={() => setActiveTab('suggestions')} variant="outline">
+              <Button onClick={() => setActiveTab('suggestions')} variant="outline" className="w-full sm:w-auto">
                 Ver Sugestões
               </Button>
             </div>

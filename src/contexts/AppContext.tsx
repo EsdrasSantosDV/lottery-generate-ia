@@ -9,6 +9,10 @@ interface AppState {
   setLastResult: (result: GenerationResult | null) => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  mobileNavOpen: boolean;
+  setMobileNavOpen: (open: boolean) => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -17,10 +21,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedMode, setSelectedMode] = useState<LotteryMode>(LOTTERY_MODES[0]);
   const [lastResult, setLastResult] = useState<GenerationResult | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <AppContext.Provider
-      value={{ selectedMode, setSelectedMode, lastResult, setLastResult, activeTab, setActiveTab }}
+      value={{
+        selectedMode,
+        setSelectedMode,
+        lastResult,
+        setLastResult,
+        activeTab,
+        setActiveTab,
+        sidebarCollapsed,
+        setSidebarCollapsed,
+        mobileNavOpen,
+        setMobileNavOpen,
+      }}
     >
       {children}
     </AppContext.Provider>

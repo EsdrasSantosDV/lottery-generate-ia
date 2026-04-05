@@ -10,64 +10,66 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppState } from '@/contexts/AppContext';
-import { useState } from 'react';
 
-const navItems = [
+export const APP_NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'generator', label: 'Gerador', icon: Play },
   { id: 'analysis', label: 'Análise', icon: BarChart3 },
   { id: 'suggestions', label: 'Sugestões', icon: Lightbulb },
   { id: 'history', label: 'Histórico', icon: History },
-];
+] as const;
 
 export function AppSidebar() {
-  const { activeTab, setActiveTab } = useAppState();
-  const [collapsed, setCollapsed] = useState(false);
+  const { activeTab, setActiveTab, sidebarCollapsed, setSidebarCollapsed } = useAppState();
 
   return (
     <aside
       className={cn(
-        'h-screen sticky top-0 flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300',
-        collapsed ? 'w-16' : 'w-60'
+        'flex h-full min-h-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-300 ease-out',
+        sidebarCollapsed ? 'w-16' : 'w-60'
       )}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
+      <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-cyan-600 shadow-sm">
           <Dices className="h-4 w-4 text-primary-foreground" />
         </div>
-        {!collapsed && <span className="font-bold text-sidebar-accent-foreground text-lg tracking-tight">LottoLab</span>}
+        {!sidebarCollapsed && (
+          <span className="truncate text-lg font-bold tracking-tight text-sidebar-accent-foreground">
+            Loto<span className="text-sidebar-primary">Khan</span>
+          </span>
+        )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 py-4 px-2 space-y-1">
-        {navItems.map((item) => {
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
+        {APP_NAV_ITEMS.map((item) => {
           const active = activeTab === item.id;
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => setActiveTab(item.id)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200',
+                'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200',
                 active
                   ? 'bg-sidebar-accent text-sidebar-primary'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               )}
             >
-              <item.icon className="h-4 w-4 flex-shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              <item.icon className="h-4 w-4 shrink-0" />
+              {!sidebarCollapsed && <span>{item.label}</span>}
             </button>
           );
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <div className="p-2 border-t border-sidebar-border">
+      <div className="shrink-0 border-t border-sidebar-border p-2">
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center p-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          type="button"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="flex w-full items-center justify-center rounded-md p-2 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+          aria-label={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
         >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
     </aside>

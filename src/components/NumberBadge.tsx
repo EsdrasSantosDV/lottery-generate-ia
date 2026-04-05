@@ -2,12 +2,14 @@ import { cn } from '@/lib/utils';
 
 interface NumberBadgeProps {
   number: number;
+  /** Se definido, substitui o texto exibido (ex.: um dígito no Super Sete). */
+  displayValue?: string;
   count?: number;
   highlight?: 'top' | 'bottom' | 'none';
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function NumberBadge({ number, count, highlight = 'none', size = 'md' }: NumberBadgeProps) {
+export function NumberBadge({ number, displayValue, count, highlight = 'none', size = 'md' }: NumberBadgeProps) {
   const sizeClasses = {
     sm: 'w-8 h-8 text-xs',
     md: 'w-10 h-10 text-sm',
@@ -25,7 +27,7 @@ export function NumberBadge({ number, count, highlight = 'none', size = 'md' }: 
           highlight === 'none' && 'bg-secondary text-secondary-foreground'
         )}
       >
-        {String(number).padStart(2, '0')}
+        {displayValue ?? String(number).padStart(2, '0')}
       </div>
       {count !== undefined && <span className="text-[10px] text-muted-foreground">{count}</span>}
     </div>

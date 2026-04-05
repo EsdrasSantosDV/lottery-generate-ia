@@ -8,13 +8,17 @@ interface SuggestionCardProps {
   description: string;
   numbers: number[];
   variant?: 'primary' | 'accent' | 'muted' | 'default';
+  /** Formata cada dezena para cópia e exibição (ex.: Super Sete = um dígito). */
+  formatDigit?: (n: number) => string;
 }
 
-export function SuggestionCard({ title, description, numbers, variant = 'default' }: SuggestionCardProps) {
+export function SuggestionCard({ title, description, numbers, variant = 'default', formatDigit }: SuggestionCardProps) {
   const [copied, setCopied] = useState(false);
 
+  const fmt = formatDigit ?? ((n: number) => String(n).padStart(2, '0'));
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(numbers.map((n) => String(n).padStart(2, '0')).join(' - '));
+    navigator.clipboard.writeText(numbers.map((n) => fmt(n)).join(' - '));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -44,6 +48,7 @@ export function SuggestionCard({ title, description, numbers, variant = 'default
           <NumberBadge
             key={i}
             number={n}
+            displayValue={fmt(n)}
             highlight={variant === 'primary' ? 'top' : variant === 'muted' ? 'bottom' : 'none'}
             size="sm"
           />

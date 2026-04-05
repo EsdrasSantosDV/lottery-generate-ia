@@ -1,5 +1,5 @@
 import { useAppState } from '@/contexts/AppContext';
-import { generateSuggestion } from '@/lib/lottery-utils';
+import { generateSuggestion, formatLotteryDigitLabel } from '@/lib/lottery-utils';
 import { LOTTERY_MODES } from '@/lib/lottery-types';
 import { SuggestionCard } from '@/components/SuggestionCard';
 import { Lightbulb } from 'lucide-react';
@@ -22,28 +22,40 @@ export function SuggestionsPage() {
 
   const mode = LOTTERY_MODES.find((m) => m.id === lastResult.modeId) || LOTTERY_MODES[0];
 
+  const isPositional = mode.gameKind === 'positional';
+  const unitLabel = isPositional ? 'posições (dezenas por coluna)' : 'números';
+  const fmt = (n: number) => formatLotteryDigitLabel(n, mode);
+
   const suggestions = [
     {
-      title: '🔥 Números Mais Frequentes',
-      description: `Os ${mode.numbersPerGame} números com maior incidência na simulação`,
+      title: '🔥 Mais Frequentes',
+      description: isPositional
+        ? `${mode.numbersPerGame} ${unitLabel} priorizando dezenas mais sorteadas por posição na simulação`
+        : `Os ${mode.numbersPerGame} números com maior incidência na simulação`,
       numbers: generateSuggestion(lastResult.frequencies, mode, 'top'),
       variant: 'primary' as const,
     },
     {
-      title: '❄️ Números Menos Frequentes',
-      description: `Os ${mode.numbersPerGame} números com menor incidência na simulação`,
+      title: '❄️ Menos Frequentes',
+      description: isPositional
+        ? `${mode.numbersPerGame} ${unitLabel} priorizando dezenas menos sorteadas`
+        : `Os ${mode.numbersPerGame} números com menor incidência na simulação`,
       numbers: generateSuggestion(lastResult.frequencies, mode, 'bottom'),
       variant: 'muted' as const,
     },
     {
       title: '⚖️ Combinação Mista',
-      description: 'Metade dos mais frequentes + metade dos menos frequentes',
+      description: isPositional
+        ? 'Mistura de faixas de frequência ao longo das colunas'
+        : 'Metade dos mais frequentes + metade dos menos frequentes',
       numbers: generateSuggestion(lastResult.frequencies, mode, 'mixed'),
       variant: 'default' as const,
     },
     {
       title: '🎲 Derivação Aleatória',
-      description: 'Combinação embaralhada dos números com maior incidência',
+      description: isPositional
+        ? 'Dezenas aleatórias entre as mais incidentes (ordem preservada)'
+        : 'Combinação embaralhada dos números com maior incidência',
       numbers: generateSuggestion(lastResult.frequencies, mode, 'random'),
       variant: 'accent' as const,
     },
@@ -54,13 +66,19 @@ export function SuggestionsPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Sugestões de Jogos</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Combinações sugeridas com base na distribuição de {lastResult.totalGames.toLocaleString('pt-BR')} jogos — {lastResult.modeName}
+          {mode.id === 'timemania' && (
+            <span className="block mb-1 text-amber-700/90 dark:text-amber-400/90">
+              Time do coração não entra na simulação — escolha o clube na sua aposta oficial.
+            </span>
+          )}
+          Combinações sugeridas com base na distribuição de {lastResult.totalGames.toLocaleString('pt-BR')}{' '}
+          {mode.gamesPerBet > 1 ? `apostas (${mode.gamesPerBet} jogos cada)` : 'jogos'} — {lastResult.modeName}
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {suggestions.map((s, i) => (
-          <SuggestionCard key={i} {...s} />
+          <SuggestionCard key={i} {...s} formatDigit={fmt} />
         ))}
       </div>
 
@@ -78,7 +96,7 @@ export function SuggestionsPage() {
                       key={j}
                       className="bg-secondary text-secondary-foreground rounded px-2 py-0.5 text-xs font-mono font-medium"
                     >
-                      {String(n).padStart(2, '0')}
+                      {fmt(n)}
                     </span>
                   ))}
                 </div>

@@ -2,14 +2,20 @@ import { useAppState } from '@/contexts/AppContext';
 import { StatCard } from '@/components/StatCard';
 import { NumberBadge } from '@/components/NumberBadge';
 import { LotterySelector } from '@/components/LotterySelector';
-import { formatNumber, formatDuration, getTopNumbers, getBottomNumbers } from '@/lib/lottery-utils';
+import { formatNumber, formatDuration, getTopNumbers, getBottomNumbers, formatLotteryDigitLabel } from '@/lib/lottery-utils';
+import { LOTTERY_MODES } from '@/lib/lottery-types';
 import { Dices, Timer, Cpu, Hash, TrendingUp, TrendingDown } from 'lucide-react';
 
 export function DashboardPage() {
   const { selectedMode, lastResult } = useAppState();
 
-  const topNums = lastResult ? getTopNumbers(lastResult.frequencies, 10) : [];
-  const bottomNums = lastResult ? getBottomNumbers(lastResult.frequencies, 10) : [];
+  const modeForLastResult = lastResult
+    ? LOTTERY_MODES.find((m) => m.id === lastResult.modeId) || selectedMode
+    : selectedMode;
+
+  const nRank = modeForLastResult.numbersPerGame;
+  const topNums = lastResult ? getTopNumbers(lastResult.frequencies, nRank) : [];
+  const bottomNums = lastResult ? getBottomNumbers(lastResult.frequencies, nRank) : [];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -28,9 +34,15 @@ export function DashboardPage() {
           icon={<Dices className="h-5 w-5" />}
         />
         <StatCard
-          title="Jogos Gerados"
+          title={selectedMode.gamesPerBet > 1 ? 'Apostas Geradas' : 'Jogos Gerados'}
           value={lastResult ? formatNumber(lastResult.totalGames) : '—'}
-          subtitle={lastResult ? 'Última execução' : 'Nenhuma execução'}
+          subtitle={
+            lastResult
+              ? selectedMode.gamesPerBet > 1
+                ? `${selectedMode.gamesPerBet} jogos por aposta`
+                : 'Última execução'
+              : 'Nenhuma execução'
+          }
           icon={<Hash className="h-5 w-5" />}
         />
         <StatCard
@@ -42,7 +54,11 @@ export function DashboardPage() {
         <StatCard
           title="Tempo Total"
           value={lastResult ? formatDuration(lastResult.elapsedMs) : '—'}
-          subtitle={lastResult ? `${(lastResult.totalGames / (lastResult.elapsedMs / 1000)).toFixed(0)} jogos/s` : ''}
+          subtitle={
+            lastResult
+              ? `${(lastResult.totalGames / (lastResult.elapsedMs / 1000)).toFixed(0)} ${selectedMode.gamesPerBet > 1 ? 'apostas' : 'jogos'}/s`
+              : ''
+          }
           icon={<Timer className="h-5 w-5" />}
         />
       </div>
@@ -54,9 +70,15 @@ export function DashboardPage() {
               <TrendingUp className="h-4 w-4 text-primary" />
               <h3 className="font-semibold text-foreground">Top 10 — Mais Frequentes</h3>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex max-h-[min(28rem,70vh)] flex-wrap gap-3 overflow-y-auto pr-1">
               {topNums.map((item) => (
-                <NumberBadge key={item.number} number={item.number} count={item.count} highlight="top" />
+                <NumberBadge
+                  key={item.number}
+                  number={item.number}
+                  displayValue={formatLotteryDigitLabel(item.number, modeForLastResult)}
+                  count={item.count}
+                  highlight="top"
+                />
               ))}
             </div>
           </div>
@@ -64,11 +86,19 @@ export function DashboardPage() {
           <div className="bg-card rounded-lg border border-border p-5 animate-fade-in">
             <div className="flex items-center gap-2 mb-4">
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold text-foreground">Top 10 — Menos Frequentes</h3>
+              <h3 className="font-semibold text-foreground">
+                {nRank} menos frequentes
+              </h3>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex max-h-[min(28rem,70vh)] flex-wrap gap-3 overflow-y-auto pr-1">
               {bottomNums.map((item) => (
-                <NumberBadge key={item.number} number={item.number} count={item.count} highlight="bottom" />
+                <NumberBadge
+                  key={item.number}
+                  number={item.number}
+                  displayValue={formatLotteryDigitLabel(item.number, modeForLastResult)}
+                  count={item.count}
+                  highlight="bottom"
+                />
               ))}
             </div>
           </div>
