@@ -70,8 +70,14 @@ describe('fetchCaixaJsonWithBackoff', () => {
         text: async () => '{"x":1}',
       } as Response);
 
-    const p = fetchCaixaJsonWithBackoff('https://example.com/x', { minDelayMs: 100, maxAttempts: 5 });
+    const onRateLimitHit = vi.fn();
+    const p = fetchCaixaJsonWithBackoff('https://example.com/x', {
+      minDelayMs: 100,
+      maxAttempts: 5,
+      onRateLimitHit,
+    });
     await vi.advanceTimersByTimeAsync(5000);
     await expect(p).resolves.toEqual({ x: 1 });
+    expect(onRateLimitHit).toHaveBeenCalledWith(429, 0);
   });
 });

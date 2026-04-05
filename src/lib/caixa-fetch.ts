@@ -31,7 +31,7 @@ export function jitterMs(min: number, max: number): number {
 }
 
 /**
- * GET JSON com espera entre tentativas: respeita rate limit (429/403/5xx), `Retry-After` e backoff exponencial.
+ * GET JSON com espera entre tentativas: respeita rate limit (429/403/408/5xx), `Retry-After` e backoff exponencial.
  * Não substitui um IP bloqueado — só reduz a chance de bloqueio por volume.
  */
 export async function fetchCaixaJsonWithBackoff(
@@ -41,6 +41,8 @@ export async function fetchCaixaJsonWithBackoff(
     maxAttempts?: number;
     maxDelayMs?: number;
     isCancelled?: () => boolean;
+    /** Chamado antes de esperar quando a API sinaliza limite / indisponibilidade (429, 403, 408, 5xx). Útil para aumentar intervalo no worker. */
+    onRateLimitHit?: (status: number, attempt: number) => void;
   }
 ): Promise<unknown> {
   const maxAttempts = options.maxAttempts ?? 12;
@@ -63,7 +65,14 @@ export async function fetchCaixaJsonWithBackoff(
 
     await res.text().catch(() => {});
 
-    if (res.status === 429 || res.status === 403 || res.status >= 500) {
+    const isRateLimitedOrUnavailable =
+      res.status === 429 ||
+      res.status === 403 ||
+      res.status === 408 ||
+      res.status >= 500;
+
+    if (isRateLimitedOrUnavailable) {
+      options.onRateLimitHit?.(res.status, attempt);
       const ra = parseRetryAfterMs(res) ?? 0;
       const exp = minDelayMs * Math.pow(2, attempt) + jitterMs(0, 800);
       /** 403 costuma ser WAF / limite: espera extra antes de tentar de novo (não é “burlar”, é respeitar o bloqueio temporário). */

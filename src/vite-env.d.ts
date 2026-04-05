@@ -5,10 +5,12 @@ interface ImportMetaEnv {
   readonly VITE_CAIXA_API_BASE?: string;
   /** Opcional: primeiro concurso a buscar no sync (ex.: `1` para repreencher premiação no histórico). */
   readonly VITE_CAIXA_BACKFILL_FROM_CONCURSO?: string;
-  /** Ms entre chamadas ao consultar “último concurso” por modalidade (default ~1400). Aumente se tomar 403/429. */
+  /** Ms entre chamadas ao consultar “último concurso” por modalidade (default ~1600). Aumente se tomar 403/429. */
   readonly VITE_CAIXA_MAIN_GAP_MS?: string;
-  /** Ms entre cada GET de concurso no worker (default ~1300). Aumente se tomar 403/429. */
+  /** Ms entre cada GET de concurso no worker (default ~1500). Aumente se tomar 403/429. */
   readonly VITE_CAIXA_REQUEST_DELAY_MS?: string;
+  /** Ms extras ao iniciar cada modalidade no worker (default ~800). Espaça lotofacil vs mega-sena etc. */
+  readonly VITE_CAIXA_MODE_GAP_MS?: string;
   /** `1` / `true` / `yes`: desativa o sync automático ao abrir o app (sem API Caixa nem escrita Supabase). */
   readonly VITE_CAIXA_SYNC_DISABLED?: string;
 

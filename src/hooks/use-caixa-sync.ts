@@ -11,6 +11,7 @@ import {
   recomputeHistoricalStatsForMode,
   upsertSyncMeta,
 } from '@/lib/lottery-official-supabase';
+import { jitterMs } from '@/lib/caixa-fetch';
 import {
   contestRangeInclusive,
   delay,
@@ -94,7 +95,7 @@ export function useCaixaSync() {
           errorMessage: '',
         });
 
-        await delay(getCaixaMainThreadGapMs());
+        await delay(getCaixaMainThreadGapMs() + jitterMs(0, 550));
 
         let latestRemote: number;
         try {

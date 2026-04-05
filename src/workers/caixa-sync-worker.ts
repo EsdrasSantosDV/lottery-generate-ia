@@ -2,6 +2,7 @@
 
 import { fetchCaixaJsonWithBackoff, jitterMs } from '@/lib/caixa-fetch';
 import { buildCaixaContestUrl } from '@/lib/caixa-api-paths';
+import { getCaixaWorkerModeGapMs } from '@/lib/caixa-rate-limit-config';
 import { normalizedToDrawDocument } from '@/lib/caixa-dto';
 import { normalizeCaixaResultado } from '@/lib/caixa-schemas';
 import type {
@@ -37,6 +38,7 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
 
   void (async () => {
     const { baseUrl, requestDelayMs, batchSize, modes } = data;
+    const modeGapMs = getCaixaWorkerModeGapMs();
     cancelled = false;
     post({ type: 'ready' });
 
@@ -44,7 +46,10 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
       for (const { modeId, segment, contestNumbers, latestRemote } of modes) {
         if (cancelled) break;
 
-        await delay(requestDelayMs + jitterMs(0, 200));
+        await delay(modeGapMs + requestDelayMs + jitterMs(0, 350));
+
+        let effectiveDelayMs = requestDelayMs;
+        const maxAdaptiveMs = Math.min(requestDelayMs * 5, 12_000);
 
         if (contestNumbers.length === 0) {
           post({
@@ -63,7 +68,7 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
         for (let i = 0; i < contestNumbers.length; i++) {
           if (cancelled) break;
           const n = contestNumbers[i]!;
-          await delay(requestDelayMs + jitterMs(0, 250));
+          await delay(effectiveDelayMs + jitterMs(0, 350));
           post({
             type: 'progress',
             modeId,
@@ -76,10 +81,20 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
           let json: unknown;
           try {
             json = await fetchCaixaJsonWithBackoff(url, {
-              minDelayMs: requestDelayMs,
-              maxAttempts: 12,
+              minDelayMs: effectiveDelayMs,
+              maxAttempts: 14,
               isCancelled: () => cancelled,
+              onRateLimitHit: () => {
+                effectiveDelayMs = Math.min(
+                  maxAdaptiveMs,
+                  Math.floor(effectiveDelayMs * 1.38) + jitterMs(0, 220)
+                );
+              },
             });
+            effectiveDelayMs = Math.max(
+              requestDelayMs,
+              Math.floor(effectiveDelayMs * 0.96)
+            );
           } catch {
             continue;
           }
