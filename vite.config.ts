@@ -11,6 +11,22 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      "/api-caixa": {
+        target: "https://servicebus3.caixa.gov.br",
+        changeOrigin: true,
+        // Node (proxy) não confia na cadeia do certificado da Caixa em alguns ambientes — só em dev.
+        secure: false,
+        rewrite: (p) => p.replace(/^\/api-caixa/, "/portaldeloterias/api"),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            // Upstream exige contexto do portal; sem isso costuma retornar 403.
+            proxyReq.setHeader("Referer", "https://loterias.caixa.gov.br/");
+            proxyReq.setHeader("Origin", "https://loterias.caixa.gov.br");
+          });
+        },
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

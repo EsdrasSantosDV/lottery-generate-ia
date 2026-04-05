@@ -1,5 +1,7 @@
 import { AppProvider, useAppState } from '@/contexts/AppContext';
 import { DatabaseProvider } from '@/contexts/DatabaseContext';
+import { CaixaSyncBanner } from '@/components/CaixaSyncBanner';
+import { useCaixaSync } from '@/hooks/use-caixa-sync';
 import { AppSidebar } from '@/components/AppSidebar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { AppHeader } from '@/components/AppHeader';
@@ -12,6 +14,7 @@ import { HistoryPage } from '@/pages/HistoryPage';
 
 function AppContent() {
   const { activeTab } = useAppState();
+  const caixaSync = useCaixaSync();
 
   const pages: Record<string, React.ReactNode> = {
     dashboard: <DashboardPage />,
@@ -31,7 +34,14 @@ function AppContent() {
         </div>
 
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-4 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] pt-4 md:p-8 md:pb-8">
-          <div className="mx-auto w-full max-w-6xl">{pages[activeTab] || pages.dashboard}</div>
+          <div className="mx-auto w-full max-w-6xl">
+            <CaixaSyncBanner
+              status={caixaSync.status}
+              progressLabel={caixaSync.progressLabel}
+              errorMessage={caixaSync.errorMessage}
+            />
+            {pages[activeTab] || pages.dashboard}
+          </div>
         </main>
       </div>
 
