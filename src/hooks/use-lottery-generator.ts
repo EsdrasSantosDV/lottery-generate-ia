@@ -7,6 +7,7 @@ import type {
   GenerationResult,
   ProcessingStatus,
 } from '../lib/lottery-types';
+import LotteryWorker from '../workers/lottery-worker.ts?worker';
 
 interface GeneratorConfig {
   mode: LotteryMode;
@@ -70,8 +71,7 @@ export function useLotteryGenerator() {
       const batchSize = Math.max(1000, Math.min(50000, Math.floor(totalGames / workerCount / 20)));
 
       for (let i = 0; i < workerCount; i++) {
-        const workerUrl = new URL('../workers/lottery-worker.ts', import.meta.url);
-        const worker = new Worker(workerUrl, { type: 'module' });
+        const worker = new LotteryWorker();
         workersRef.current.push(worker);
 
         const assignedGames = gamesPerWorker + (i < remainder ? 1 : 0);
