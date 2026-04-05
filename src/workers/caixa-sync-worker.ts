@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { caixaFetchInit } from '@/lib/caixa-fetch';
+import { fetchCaixaJsonWithBackoff, jitterMs } from '@/lib/caixa-fetch';
 import { buildCaixaContestUrl } from '@/lib/caixa-api-paths';
 import { normalizedToDrawDocument } from '@/lib/caixa-dto';
 import { normalizeCaixaResultado } from '@/lib/caixa-schemas';
@@ -16,29 +16,6 @@ let cancelled = false;
 
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
-}
-
-async function fetchJsonWithRetry(url: string, requestDelayMs: number): Promise<unknown> {
-  const maxAttempts = 5;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    if (cancelled) throw new Error('cancelado');
-    try {
-      const res = await fetch(url, caixaFetchInit);
-      if (res.status === 403 || res.status === 429 || res.status >= 500) {
-        await delay(requestDelayMs + 250 * (attempt + 1));
-        continue;
-      }
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const text = await res.text();
-      return JSON.parse(text) as unknown;
-    } catch (e) {
-      if (attempt === maxAttempts - 1) throw e;
-      await delay(requestDelayMs + 200 * (attempt + 1));
-    }
-  }
-  throw new Error('fetch falhou');
 }
 
 function post(o: CaixaSyncWorkerOutgoing): void {
@@ -67,7 +44,7 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
       for (const { modeId, segment, contestNumbers, latestRemote } of modes) {
         if (cancelled) break;
 
-        await delay(requestDelayMs);
+        await delay(requestDelayMs + jitterMs(0, 200));
 
         if (contestNumbers.length === 0) {
           post({
@@ -86,7 +63,7 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
         for (let i = 0; i < contestNumbers.length; i++) {
           if (cancelled) break;
           const n = contestNumbers[i]!;
-          await delay(requestDelayMs);
+          await delay(requestDelayMs + jitterMs(0, 250));
           post({
             type: 'progress',
             modeId,
@@ -98,7 +75,11 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
           const url = buildCaixaContestUrl(baseUrl, segment, n);
           let json: unknown;
           try {
-            json = await fetchJsonWithRetry(url, requestDelayMs);
+            json = await fetchCaixaJsonWithBackoff(url, {
+              minDelayMs: requestDelayMs,
+              maxAttempts: 12,
+              isCancelled: () => cancelled,
+            });
           } catch {
             continue;
           }

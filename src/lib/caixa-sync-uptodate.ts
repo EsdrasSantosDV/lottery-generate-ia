@@ -1,9 +1,7 @@
 import { buildCaixaContestUrl } from '@/lib/caixa-api-paths';
-import { fetchCaixaJson } from '@/lib/caixa-fetch';
+import { fetchCaixaJsonWithBackoff } from '@/lib/caixa-fetch';
+import { getCaixaMainThreadGapMs } from '@/lib/caixa-rate-limit-config';
 import { normalizeCaixaResultado } from '@/lib/caixa-schemas';
-
-/** Intervalo mínimo entre chamadas à API da Caixa (main thread / planejamento do sync). */
-export const CAIXA_MAIN_THREAD_GAP_MS = 400;
 
 export function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -11,23 +9,18 @@ export function delay(ms: number): Promise<void> {
 
 /**
  * Último número de concurso publicado na API (endpoint sem número = último sorteio).
- * Com retries leves para 403/429.
+ * Usa backoff (429/403/5xx + Retry-After).
  */
 export async function fetchLatestContestNumber(baseUrl: string, segment: string): Promise<number> {
   const url = buildCaixaContestUrl(baseUrl, segment);
-  const maxAttempts = 5;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      const json = await fetchCaixaJson(url);
-      const norm = normalizeCaixaResultado(json);
-      if (!norm) throw new Error('Resposta inválida');
-      return norm.numero;
-    } catch {
-      if (attempt === maxAttempts - 1) throw new Error(`Não foi possível obter o último concurso (${segment})`);
-      await delay(CAIXA_MAIN_THREAD_GAP_MS + 120 * (attempt + 1));
-    }
-  }
-  throw new Error('fetchLatestContestNumber');
+  const gap = getCaixaMainThreadGapMs();
+  const json = await fetchCaixaJsonWithBackoff(url, {
+    minDelayMs: gap,
+    maxAttempts: 12,
+  });
+  const norm = normalizeCaixaResultado(json);
+  if (!norm) throw new Error('Resposta inválida');
+  return norm.numero;
 }
 
 /** Concursos a buscar no backfill: [start..latest] inclusive. */

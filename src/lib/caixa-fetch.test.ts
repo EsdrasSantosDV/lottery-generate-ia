@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchCaixaJson } from '@/lib/caixa-fetch';
+import { fetchCaixaJson, fetchCaixaJsonWithBackoff, parseRetryAfterMs } from '@/lib/caixa-fetch';
 
 describe('fetchCaixaJson', () => {
   beforeEach(() => {
@@ -36,5 +36,42 @@ describe('fetchCaixaJson', () => {
     } as Response);
 
     await expect(fetchCaixaJson('https://example.com/x')).rejects.toThrow('JSON inválido');
+  });
+});
+
+describe('parseRetryAfterMs', () => {
+  it('interpreta segundos', () => {
+    const res = new Response(null, { headers: { 'retry-after': '3' } });
+    expect(parseRetryAfterMs(res)).toBe(3000);
+  });
+});
+
+describe('fetchCaixaJsonWithBackoff', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('retenta após 429 e resolve', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        headers: new Headers({ 'retry-after': '0' }),
+        text: async () => '',
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => '{"x":1}',
+      } as Response);
+
+    const p = fetchCaixaJsonWithBackoff('https://example.com/x', { minDelayMs: 100, maxAttempts: 5 });
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect(p).resolves.toEqual({ x: 1 });
   });
 });

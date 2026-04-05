@@ -12,18 +12,15 @@ import {
   upsertSyncMeta,
 } from '@/lib/lottery-official-supabase';
 import {
-  CAIXA_MAIN_THREAD_GAP_MS,
   contestRangeInclusive,
   delay,
   fetchLatestContestNumber,
   missingContestNumbers,
 } from '@/lib/caixa-sync-uptodate';
+import { getCaixaMainThreadGapMs, getCaixaWorkerRequestDelayMs } from '@/lib/caixa-rate-limit-config';
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase-client';
 
 export type CaixaSyncUiStatus = 'idle' | 'checking' | 'running' | 'done' | 'error';
-
-/** Intervalo entre requisições à API dentro do worker (reduz 403/429). */
-const WORKER_REQUEST_DELAY_MS = 350;
 
 /** Evita dois workers; em erro libera para nova tentativa após recarregar. */
 let syncLock = false;
@@ -89,7 +86,7 @@ export function useCaixaSync() {
           errorMessage: '',
         });
 
-        await delay(CAIXA_MAIN_THREAD_GAP_MS);
+        await delay(getCaixaMainThreadGapMs());
 
         let latestRemote: number;
         try {
@@ -223,7 +220,7 @@ export function useCaixaSync() {
       worker.postMessage({
         type: 'start',
         baseUrl,
-        requestDelayMs: WORKER_REQUEST_DELAY_MS,
+        requestDelayMs: getCaixaWorkerRequestDelayMs(),
         batchSize: 40,
         modes: modesForWorker,
       });
