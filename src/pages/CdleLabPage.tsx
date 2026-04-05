@@ -6,10 +6,14 @@ import { StatCard } from '@/components/StatCard';
 import { formatNumber, formatDuration } from '@/lib/lottery-utils';
 import {
   cdleModeFromLotteryMode,
+  filterDrawsForCdleMode,
+  evaluateAgainstHistoricalDraws,
   monteCarloEvaluate,
   type MonteCarloResult,
   type ScoreWeights,
 } from '@/lib/cdle-engine';
+import { isSupabaseConfigured } from '@/lib/supabase-client';
+import { useHistoricalDezenasForMode } from '@/hooks/use-official-draws';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -105,6 +109,21 @@ export function CdleLabPage() {
     reset,
   } = useCdleLab();
 
+  const cdleMode = useMemo(() => cdleModeFromLotteryMode(selectedMode), [selectedMode]);
+  const { data: rawHistoricalDezenas, isLoading: histLoading, error: histQueryError } =
+    useHistoricalDezenasForMode(selectedMode.id, Boolean(cdleOk));
+
+  const validHistoricalDraws = useMemo(() => {
+    if (!cdleMode || !rawHistoricalDezenas?.length) return [];
+    return filterDrawsForCdleMode(cdleMode, rawHistoricalDezenas);
+  }, [cdleMode, rawHistoricalDezenas]);
+
+  const historicalMcResult = useMemo((): MonteCarloResult | null => {
+    if (!result?.games.length || !validHistoricalDraws.length) return null;
+    const games = result.games.map((g) => g.numbers);
+    return evaluateAgainstHistoricalDraws(games, validHistoricalDraws);
+  }, [result, validHistoricalDraws]);
+
   const handleStart = () => {
     if (!cdleOk) return;
     setMcResult(null);
@@ -139,12 +158,13 @@ export function CdleLabPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
           <Sparkles className="h-7 w-7 text-primary shrink-0" />
-          Lab CDLE
+          Órbita Dinâmica
         </h1>
         <p className="text-muted-foreground text-sm mt-1 max-w-3xl">
-          Geração por mapa logístico, entropia por faixas, anti-padrão e seleção de portfólio com
-          diversidade — paralelizada em Web Workers. Isto não aumenta a chance de sorteio; organiza
-          amostras e reduz redundância entre jogos.
+          Laboratório de cálculo estocástico e sistemas dinâmicos discretos: o mapa logístico gera
+          caos determinístico; entropia por faixas, anti-padrão e portfólio com diversidade rodam em
+          paralelo (Web Workers). Isto não aumenta a chance de sorteio; organiza amostras e reduz
+          redundância entre jogos.
         </p>
       </div>
 
@@ -153,7 +173,7 @@ export function CdleLabPage() {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Modalidade não suportada</AlertTitle>
           <AlertDescription>
-            O Lab CDLE aplica-se a jogos de combinação (ex.: Mega-Sena). A Super Sete é posicional —
+            Este laboratório aplica-se a jogos de combinação (ex.: Mega-Sena). A Super Sete é posicional —
             escolha outra modalidade.
           </AlertDescription>
         </Alert>
@@ -442,10 +462,65 @@ export function CdleLabPage() {
           </div>
 
           <div className="bg-card rounded-lg border border-border p-4 sm:p-6 space-y-4">
-            <h2 className="text-lg font-semibold mb-1">Monte Carlo (laboratório)</h2>
+            <h2 className="text-lg font-semibold mb-1">Análise estatística</h2>
             <p className="text-sm text-muted-foreground">
-              Sorteios sintéticos uniformes: compara acertos esperados do portfólio (não prevê o próximo
-              concurso).
+              Compare o portfólio ao histórico real sincronizado no Supabase e a uma simulação uniforme
+              (referência teórica). Nenhum dos dois prevê o próximo concurso.
+            </p>
+
+            <div className="rounded-md border border-border p-4 space-y-2 bg-muted/30">
+              <h3 className="text-sm font-semibold text-foreground">Histórico real (Supabase)</h3>
+              {!isSupabaseConfigured() && (
+                <p className="text-sm text-amber-600 dark:text-amber-500">
+                  Configure <span className="font-mono">VITE_SUPABASE_URL</span> e a chave no{' '}
+                  <span className="font-mono">.env</span> para carregar sorteios oficiais.
+                </p>
+              )}
+              {isSupabaseConfigured() && histLoading && (
+                <p className="text-sm text-muted-foreground">A carregar sorteios…</p>
+              )}
+              {isSupabaseConfigured() && !histLoading && histQueryError != null && (
+                <p className="text-sm text-destructive">
+                  {histQueryError instanceof Error ? histQueryError.message : 'Erro ao ler o histórico.'}
+                </p>
+              )}
+              {isSupabaseConfigured() &&
+                !histLoading &&
+                histQueryError == null &&
+                validHistoricalDraws.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum sorteio válido para esta modalidade na base. Sincronize os dados da Caixa
+                    (página Resultados / sincronização).
+                  </p>
+                )}
+              {historicalMcResult && (
+                <div className="rounded-md bg-background/80 p-3 text-sm space-y-2 border border-border/60">
+                  <p className="text-xs text-muted-foreground">
+                    {validHistoricalDraws.length} concursos no histórico ·{' '}
+                    {validHistoricalDraws.length * (result?.games.length ?? 0)} comparações (sorteio ×
+                    jogo)
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Média de acertos por jogo:</span>{' '}
+                    <span className="font-mono font-semibold">
+                      {historicalMcResult.averageHits.toFixed(4)}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Máximo observado:</span>{' '}
+                    <span className="font-mono font-semibold">{historicalMcResult.maxHits}</span>
+                  </p>
+                  <p className="text-muted-foreground text-xs">Histograma (acertos → ocorrências):</p>
+                  <pre className="text-xs font-mono overflow-x-auto p-2 rounded bg-muted/50 border border-border">
+                    {JSON.stringify(historicalMcResult.distribution, null, 0)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            <h3 className="text-sm font-semibold text-foreground pt-2">Simulação uniforme (Monte Carlo)</h3>
+            <p className="text-sm text-muted-foreground">
+              Sorteios sintéticos com a mesma regra do jogo (amostragem uniforme sem reposição na faixa).
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
               <div className="flex-1">

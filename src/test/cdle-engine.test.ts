@@ -5,6 +5,8 @@ import {
   overlap,
   selectPortfolioGreedy,
   buildCandidate,
+  filterDrawsForCdleMode,
+  evaluateAgainstHistoricalDraws,
   DEFAULT_WEIGHTS,
   type CdleMode,
   type CdleCandidate,
@@ -42,5 +44,34 @@ describe('cdle-engine', () => {
     }
     const portfolio = selectPortfolioGreedy(candidates, mega, 8, DEFAULT_WEIGHTS, 0.7);
     expect(portfolio.games.length).toBeLessThanOrEqual(8);
+  });
+
+  it('filterDrawsForCdleMode remove tamanho ou faixa inválidos', () => {
+    const raw = [
+      [1, 2, 3, 4, 5, 6],
+      [1, 2, 3],
+      [1, 1, 2, 3, 4, 5],
+      [61, 1, 2, 3, 4, 5],
+    ];
+    const ok = filterDrawsForCdleMode(mega, raw);
+    expect(ok).toHaveLength(1);
+    expect(ok[0]).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('evaluateAgainstHistoricalDraws agrega pares sorteio × jogo', () => {
+    const games = [
+      [1, 2, 3, 4, 5, 6],
+      [10, 20, 30, 40, 50, 60],
+    ];
+    const draws = [
+      [1, 2, 3, 7, 8, 9],
+      [10, 11, 12, 13, 14, 15],
+    ];
+    const r = evaluateAgainstHistoricalDraws(games, draws);
+    expect(r.averageHits).toBe(1);
+    expect(r.maxHits).toBe(3);
+    expect(r.distribution[3]).toBe(1);
+    expect(r.distribution[1]).toBe(1);
+    expect(r.distribution[0]).toBe(2);
   });
 });

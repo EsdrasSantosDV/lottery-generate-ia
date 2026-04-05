@@ -183,6 +183,35 @@ export async function upsertSyncMeta(
   if (error) throw error;
 }
 
+/** Apenas `dezenas` de todos os concursos (ordenados por `numero`), para análises que não precisam de metadados. */
+export async function fetchHistoricalDezenasForMode(
+  sb: SupabaseClient,
+  modeId: string
+): Promise<number[][]> {
+  const out: number[][] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await sb
+      .from('lottery_draws')
+      .select('dezenas')
+      .eq('mode_id', modeId)
+      .order('numero')
+      .range(from, from + DRAW_PAGE - 1);
+    if (error) throw error;
+    const rows = data ?? [];
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      const dz = (row as { dezenas: unknown }).dezenas;
+      if (!Array.isArray(dz)) continue;
+      const nums = dz.map((x) => num(x)).filter((n) => Number.isFinite(n));
+      out.push(nums);
+    }
+    if (rows.length < DRAW_PAGE) break;
+    from += DRAW_PAGE;
+  }
+  return out;
+}
+
 async function fetchDrawsForMode(sb: SupabaseClient, modeId: string): Promise<LotteryDrawDocument[]> {
   const out: LotteryDrawDocument[] = [];
   let from = 0;

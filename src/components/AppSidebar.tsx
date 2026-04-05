@@ -17,7 +17,7 @@ export const APP_NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'results', label: 'Resultados', icon: Trophy },
   { id: 'generator', label: 'Gerador', icon: Play },
-  { id: 'cdle-lab', label: 'Lab CDLE', icon: Sparkles },
+  { id: 'cdle-lab', label: 'Órbita Dinâmica', icon: Sparkles },
   { id: 'analysis', label: 'Análise', icon: BarChart3 },
   { id: 'suggestions', label: 'Sugestões', icon: Lightbulb },
   { id: 'history', label: 'Histórico', icon: History },

@@ -1,5 +1,5 @@
 /**
- * CDLE — motor de geração de combinações com caos, entropia, anti-padrão e diversidade.
+ * Órbita Dinâmica — motor de geração (mapa logístico / caos, entropia, anti-padrão, diversidade).
  * Não altera probabilidade de sorteio; foca em cobertura estrutural e portfólio.
  */
 
@@ -446,6 +446,45 @@ export function monteCarloEvaluate(
 
   return {
     averageHits: totalEvaluations === 0 ? 0 : totalHits / totalEvaluations,
+    maxHits,
+    distribution,
+  };
+}
+
+/** Mantém só sorteios compatíveis com a modalidade (tamanho, faixa, dezenas distintas). */
+export function filterDrawsForCdleMode(mode: CdleMode, draws: number[][]): number[][] {
+  return draws.filter((d) => {
+    if (d.length !== mode.picks) return false;
+    if (new Set(d).size !== mode.picks) return false;
+    return d.every((n) => Number.isInteger(n) && n >= mode.min && n <= mode.max);
+  });
+}
+
+/**
+ * Acertos de cada jogo contra cada sorteio real (histórico).
+ * Mesma forma que `MonteCarloResult`: média sobre pares (sorteio × jogo).
+ */
+export function evaluateAgainstHistoricalDraws(games: number[][], historicalDraws: number[][]): MonteCarloResult {
+  const distribution: Record<number, number> = {};
+  let totalHits = 0;
+  let maxHits = 0;
+
+  if (historicalDraws.length === 0 || games.length === 0) {
+    return { averageHits: 0, maxHits: 0, distribution: {} };
+  }
+
+  for (const draw of historicalDraws) {
+    for (const game of games) {
+      const hits = hitCount(game, draw);
+      distribution[hits] = (distribution[hits] ?? 0) + 1;
+      totalHits += hits;
+      maxHits = Math.max(maxHits, hits);
+    }
+  }
+
+  const totalEvaluations = historicalDraws.length * games.length;
+  return {
+    averageHits: totalHits / totalEvaluations,
     maxHits,
     distribution,
   };
