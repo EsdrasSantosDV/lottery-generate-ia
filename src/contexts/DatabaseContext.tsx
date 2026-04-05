@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { getDatabase } from '@/db/database';
-import { bidirectionalLotterySupabaseSync } from '@/lib/lottery-supabase-sync';
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -8,11 +7,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     getDatabase()
-      .then(async (db) => {
+      .then(() => {
         if (typeof navigator !== 'undefined' && navigator.storage?.persist) {
           void navigator.storage.persist();
         }
-        await bidirectionalLotterySupabaseSync(db);
         setReady(true);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e : new Error(String(e))));

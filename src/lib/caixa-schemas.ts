@@ -48,6 +48,16 @@ export type CaixaResultadoNormalizado = {
   tipoJogo: string | null;
   ultimoConcurso: boolean;
   acumulado: boolean | null;
+  dataProximoConcurso: string | null;
+  valorArrecadado: number | null;
+  valorEstimadoProximoConcurso: number | null;
+  valorAcumuladoProximoConcurso: number | null;
+  valorAcumuladoConcurso_0_5: number | null;
+  valorAcumuladoConcursoEspecial: number | null;
+  valorSaldoReservaGarantidora: number | null;
+  valorTotalPremioFaixaUm: number | null;
+  /** Cópia serializável de `listaRateioPremio` da API (estrutura varia por modalidade). */
+  listaRateioPremio: Record<string, unknown>[];
 };
 
 function sanitizeText(s: string | null | undefined): string {
@@ -71,6 +81,30 @@ export function parseDezenasStrings(arr: string[] | null | undefined): number[] 
   return out;
 }
 
+function numOrNull(v: unknown): number | null {
+  if (v == null) return null;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'bigint') return Number(v);
+  if (typeof v === 'string') {
+    const n = parseFloat(v.replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/** Serializa `listaRateioPremio` para JSON seguro (objetos por faixa). */
+export function cloneListaRateioPremio(raw: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  try {
+    const s = JSON.stringify(raw);
+    const parsed = JSON.parse(s) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x): x is Record<string, unknown> => x != null && typeof x === 'object' && !Array.isArray(x));
+  } catch {
+    return [];
+  }
+}
+
 export function normalizeCaixaResultado(raw: unknown): CaixaResultadoNormalizado | null {
   const parsed = caixaResultadoRawSchema.safeParse(raw);
   if (!parsed.success) return null;
@@ -85,6 +119,7 @@ export function normalizeCaixaResultado(raw: unknown): CaixaResultadoNormalizado
 
   const segundo = parseDezenasStrings(o.listaDezenasSegundoSorteio ?? undefined);
 
+  const dataProx = sanitizeText(o.dataProximoConcurso ?? undefined);
   return {
     numero,
     dataApuracao: sanitizeText(o.dataApuracao ?? undefined) || '—',
@@ -93,5 +128,14 @@ export function normalizeCaixaResultado(raw: unknown): CaixaResultadoNormalizado
     tipoJogo: o.tipoJogo != null ? sanitizeText(o.tipoJogo) : null,
     ultimoConcurso: o.ultimoConcurso === true,
     acumulado: o.acumulado ?? null,
+    dataProximoConcurso: dataProx || null,
+    valorArrecadado: numOrNull(o.valorArrecadado),
+    valorEstimadoProximoConcurso: numOrNull(o.valorEstimadoProximoConcurso),
+    valorAcumuladoProximoConcurso: numOrNull(o.valorAcumuladoProximoConcurso),
+    valorAcumuladoConcurso_0_5: numOrNull(o.valorAcumuladoConcurso_0_5),
+    valorAcumuladoConcursoEspecial: numOrNull(o.valorAcumuladoConcursoEspecial),
+    valorSaldoReservaGarantidora: numOrNull(o.valorSaldoReservaGarantidora),
+    valorTotalPremioFaixaUm: numOrNull(o.valorTotalPremioFaixaUm),
+    listaRateioPremio: cloneListaRateioPremio(o.listaRateioPremio),
   };
 }

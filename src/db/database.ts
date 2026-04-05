@@ -8,34 +8,23 @@ import {
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { generationSchema, type GenerationDocument } from './schema';
-import {
-  lotteryDrawSchema,
-  lotteryHistoricalStatsSchema,
-  lotterySyncMetaSchema,
-  type LotteryDrawDocument,
-  type LotteryHistoricalStatsDocument,
-  type LotterySyncMetaDocument,
-} from './lottery-results-schema';
 import { migrateLegacyHistoryIfNeeded } from './migrate-local-storage';
 
 export type GenerationsCollection = RxCollection<GenerationDocument>;
-export type LotteryDrawsCollection = RxCollection<LotteryDrawDocument>;
-export type LotterySyncMetaCollection = RxCollection<LotterySyncMetaDocument>;
-export type LotteryHistoricalStatsCollection = RxCollection<LotteryHistoricalStatsDocument>;
 
+/** Nome novo para não colidir com IndexedDB antigo que tinha coleções de loteria oficial. */
 export type LotteryLabDatabase = RxDatabase<{
   generations: GenerationsCollection;
-  lottery_draws: LotteryDrawsCollection;
-  lottery_sync_meta: LotterySyncMetaCollection;
-  lottery_historical_stats: LotteryHistoricalStatsCollection;
 }>;
 
 let dbPromise: Promise<LotteryLabDatabase> | null = null;
 
 async function createDatabase(): Promise<LotteryLabDatabase> {
   addRxPlugin(RxDBQueryBuilderPlugin);
+  addRxPlugin(RxDBMigrationSchemaPlugin);
   if (import.meta.env.DEV) {
     addRxPlugin(RxDBDevModePlugin);
   }
@@ -46,26 +35,14 @@ async function createDatabase(): Promise<LotteryLabDatabase> {
 
   const db = await createRxDatabase<{
     generations: GenerationsCollection;
-    lottery_draws: LotteryDrawsCollection;
-    lottery_sync_meta: LotterySyncMetaCollection;
-    lottery_historical_stats: LotteryHistoricalStatsCollection;
   }>({
-    name: 'lottery-lab',
+    name: 'lottery-lab-gen',
     storage,
   });
 
   await db.addCollections({
     generations: {
       schema: generationSchema,
-    },
-    lottery_draws: {
-      schema: lotteryDrawSchema,
-    },
-    lottery_sync_meta: {
-      schema: lotterySyncMetaSchema,
-    },
-    lottery_historical_stats: {
-      schema: lotteryHistoricalStatsSchema,
     },
   });
 
@@ -75,7 +52,7 @@ async function createDatabase(): Promise<LotteryLabDatabase> {
   return db;
 }
 
-/** Uma única instância do banco (IndexedDB via Dexie). */
+/** Uma única instância do banco (IndexedDB via Dexie) — só histórico de gerações. */
 export function getDatabase(): Promise<LotteryLabDatabase> {
   if (!dbPromise) {
     dbPromise = createDatabase();

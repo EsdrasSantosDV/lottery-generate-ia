@@ -9,6 +9,15 @@ export interface LotteryDrawSyncPayload {
   tipoJogo: string;
   ultimoConcurso: boolean;
   fetchedAt: number;
+  dataProximoConcurso?: string;
+  valorArrecadado?: number | null;
+  valorEstimadoProximoConcurso?: number | null;
+  valorAcumuladoProximoConcurso?: number | null;
+  valorAcumuladoConcurso_0_5?: number | null;
+  valorAcumuladoConcursoEspecial?: number | null;
+  valorSaldoReservaGarantidora?: number | null;
+  valorTotalPremioFaixaUm?: number | null;
+  rateioPremio?: Record<string, unknown>[];
 }
 
 export type CaixaSyncWorkerIncoming =
@@ -19,6 +28,11 @@ export type CaixaSyncWorkerIncoming =
       batchSize: number;
       /** Por modalidade: maior concurso já persistido (0 = vazio). */
       modes: { modeId: string; segment: string; maxNumeroLocal: number }[];
+      /**
+       * Se definido, o primeiro concurso buscado é `max(1, backfillFromConcurso)` em vez de `maxLocal+1`
+       * (útil para repreencher premiação em histórico já salvo; pode gerar muitas requisições).
+       */
+      backfillFromConcurso?: number;
     }
   | { type: 'cancel' };
 

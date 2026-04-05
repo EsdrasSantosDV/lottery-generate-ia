@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeCaixaResultado, parseDezenasStrings } from '@/lib/caixa-schemas';
+import {
+  cloneListaRateioPremio,
+  normalizeCaixaResultado,
+  parseDezenasStrings,
+} from '@/lib/caixa-schemas';
 
 describe('parseDezenasStrings', () => {
   it('ignora null e vazio', () => {
@@ -52,5 +56,33 @@ describe('normalizeCaixaResultado', () => {
       nomeTimeCoracaoMesSorte: '\u0000\u0000',
     });
     expect(n).not.toBeNull();
+  });
+
+  it('preenche listaRateioPremio e valores financeiros', () => {
+    const n = normalizeCaixaResultado({
+      numero: 50,
+      listaDezenas: ['01', '02', '03', '04', '05', '06'],
+      listaRateioPremio: [{ descricao: '6 acertos', ganhadores: 1 }],
+      valorArrecadado: 1000,
+      dataProximoConcurso: '08/04/2026',
+    });
+    expect(n).not.toBeNull();
+    expect(n!.listaRateioPremio).toHaveLength(1);
+    expect(n!.valorArrecadado).toBe(1000);
+    expect(n!.dataProximoConcurso).toBe('08/04/2026');
+  });
+
+  it('listaRateioPremio vazio quando API não envia', () => {
+    const n = normalizeCaixaResultado({
+      numero: 51,
+      listaDezenas: ['01', '02', '03', '04', '05', '06'],
+    });
+    expect(n!.listaRateioPremio).toEqual([]);
+  });
+});
+
+describe('cloneListaRateioPremio', () => {
+  it('descarta não-objetos', () => {
+    expect(cloneListaRateioPremio([{ a: 1 }, 2, 'x'])).toEqual([{ a: 1 }]);
   });
 });

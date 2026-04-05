@@ -8,6 +8,16 @@ export type LotteryDrawDocument = {
   tipoJogo: string;
   ultimoConcurso: boolean;
   fetchedAt: number;
+  dataProximoConcurso?: string;
+  valorArrecadado?: number;
+  valorEstimadoProximoConcurso?: number;
+  valorAcumuladoProximoConcurso?: number;
+  valorAcumuladoConcurso_0_5?: number;
+  valorAcumuladoConcursoEspecial?: number;
+  valorSaldoReservaGarantidora?: number;
+  valorTotalPremioFaixaUm?: number;
+  /** Faixas de premiação (listaRateioPremio da API). */
+  rateioPremio: Record<string, unknown>[];
 };
 
 export function drawDocumentId(modeId: string, numero: number): string {

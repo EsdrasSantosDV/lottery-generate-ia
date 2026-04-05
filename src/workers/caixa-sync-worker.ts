@@ -59,7 +59,7 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
   if (data.type !== 'start') return;
 
   void (async () => {
-    const { baseUrl, requestDelayMs, batchSize, modes } = data;
+    const { baseUrl, requestDelayMs, batchSize, modes, backfillFromConcurso } = data;
     cancelled = false;
     post({ type: 'ready' });
 
@@ -87,7 +87,12 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
         }
 
         const latestNum = latestNorm.numero;
-        const start = Math.max(1, maxNumeroLocal + 1);
+        const start = Math.max(
+          1,
+          backfillFromConcurso != null && Number.isFinite(backfillFromConcurso)
+            ? backfillFromConcurso
+            : maxNumeroLocal + 1
+        );
         if (start > latestNum) {
           post({
             type: 'mode-done',
@@ -136,6 +141,15 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
             tipoJogo: doc.tipoJogo,
             ultimoConcurso: doc.ultimoConcurso,
             fetchedAt: doc.fetchedAt,
+            dataProximoConcurso: doc.dataProximoConcurso,
+            valorArrecadado: doc.valorArrecadado,
+            valorEstimadoProximoConcurso: doc.valorEstimadoProximoConcurso,
+            valorAcumuladoProximoConcurso: doc.valorAcumuladoProximoConcurso,
+            valorAcumuladoConcurso_0_5: doc.valorAcumuladoConcurso_0_5,
+            valorAcumuladoConcursoEspecial: doc.valorAcumuladoConcursoEspecial,
+            valorSaldoReservaGarantidora: doc.valorSaldoReservaGarantidora,
+            valorTotalPremioFaixaUm: doc.valorTotalPremioFaixaUm,
+            rateioPremio: doc.rateioPremio,
           };
           pending.push(payload);
           fetchedCount++;

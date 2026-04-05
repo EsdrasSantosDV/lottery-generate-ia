@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   /** Base da API Caixa (sem barra final). Ex.: `https://servicebus3.caixa.gov.br/portaldeloterias/api` */
   readonly VITE_CAIXA_API_BASE?: string;
+  /** Opcional: primeiro concurso a buscar no sync (ex.: `1` para repreencher premiação no histórico). */
+  readonly VITE_CAIXA_BACKFILL_FROM_CONCURSO?: string;
 
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_PROJECT_ID?: string;
