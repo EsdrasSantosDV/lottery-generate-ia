@@ -67,3 +67,39 @@ export const generationSchema: RxJsonSchema<GenerationDocument> = {
   ],
   indexes: ['timestamp'],
 };
+
+/** Snapshot de análise GIA persistido localmente (JSON em `analysisJson`). */
+export type GiaSnapshotDocument = {
+  id: string;
+  modeId: string;
+  modeName: string;
+  game: number[];
+  createdAt: number;
+  analysisJson: string;
+};
+
+export const giaSnapshotSchema: RxJsonSchema<GiaSnapshotDocument> = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  keyCompression: false,
+  additionalProperties: false,
+  properties: {
+    id: { type: 'string', maxLength: 100 },
+    modeId: { type: 'string', maxLength: 100 },
+    modeName: { type: 'string', maxLength: 200 },
+    game: {
+      type: 'array',
+      items: { type: 'number' },
+    },
+    createdAt: {
+      type: 'number',
+      minimum: 0,
+      maximum: 9007199254740991,
+      multipleOf: 1,
+    },
+    analysisJson: { type: 'string', maxLength: 2_000_000 },
+  },
+  required: ['id', 'modeId', 'modeName', 'game', 'createdAt', 'analysisJson'],
+  indexes: ['createdAt'],
+};

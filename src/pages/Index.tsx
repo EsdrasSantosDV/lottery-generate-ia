@@ -13,6 +13,7 @@ import { SuggestionsPage } from '@/pages/SuggestionsPage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { ResultsPage } from '@/pages/ResultsPage';
 import { CdleLabPage } from '@/pages/CdleLabPage';
+import { GiaPage } from '@/pages/GiaPage';
 
 function AppContent() {
   const { activeTab } = useAppState();
@@ -23,6 +24,7 @@ function AppContent() {
     results: <ResultsPage />,
     generator: <GeneratorPage />,
     'cdle-lab': <CdleLabPage />,
+    gia: <GiaPage />,
     analysis: <AnalysisPage />,
     suggestions: <SuggestionsPage />,
     history: <HistoryPage />,

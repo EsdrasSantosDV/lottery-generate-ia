@@ -3,6 +3,7 @@ import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase-client';
 import {
   DRAW_LIST_PAGE,
   fetchHistoricalDezenasForMode,
+  fetchHistoricalDrawsForGia,
   fetchRecentDrawsPage,
 } from '@/lib/lottery-official-supabase';
 
@@ -35,6 +36,21 @@ export function useHistoricalDezenasForMode(modeId: string, enabled: boolean) {
     queryFn: async () => {
       if (!sb) throw new Error('Supabase não configurado');
       return fetchHistoricalDezenasForMode(sb, modeId);
+    },
+    enabled: ok,
+  });
+}
+
+/** Sorteios com `numero` para o GIA (Dupla inclui segunda coluna). */
+export function useHistoricalDrawsForGia(modeId: string, enabled: boolean) {
+  const sb = getSupabaseClient();
+  const ok = isSupabaseConfigured() && sb != null && Boolean(modeId) && enabled;
+
+  return useQuery({
+    queryKey: ['historical-draws-gia', modeId],
+    queryFn: async () => {
+      if (!sb) throw new Error('Supabase não configurado');
+      return fetchHistoricalDrawsForGia(sb, modeId);
     },
     enabled: ok,
   });

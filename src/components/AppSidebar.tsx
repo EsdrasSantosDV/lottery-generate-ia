@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Trophy,
   Sparkles,
+  BrainCircuit,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppState } from '@/contexts/AppContext';
@@ -18,6 +19,7 @@ export const APP_NAV_ITEMS = [
   { id: 'results', label: 'Resultados', icon: Trophy },
   { id: 'generator', label: 'Gerador', icon: Play },
   { id: 'cdle-lab', label: 'Órbita Dinâmica', icon: Sparkles },
+  { id: 'gia', label: 'GIA', icon: BrainCircuit },
   { id: 'analysis', label: 'Análise', icon: BarChart3 },
   { id: 'suggestions', label: 'Sugestões', icon: Lightbulb },
   { id: 'history', label: 'Histórico', icon: History },

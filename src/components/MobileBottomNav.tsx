@@ -7,6 +7,7 @@ const SHORT_LABELS: Record<string, string> = {
   results: 'Resultados',
   generator: 'Gerador',
   'cdle-lab': 'Órbita',
+  gia: 'GIA',
   analysis: 'Análise',
   suggestions: 'Dicas',
   history: 'Histórico',
@@ -28,7 +29,7 @@ export function MobileBottomNav() {
           'dark:border-border/40 dark:shadow-[0_-2px_32px_-4px_rgba(0,0,0,0.35),0_12px_40px_-8px_rgba(0,0,0,0.5)]'
         )}
       >
-        <div className="flex items-stretch justify-between gap-0.5 px-1 py-1.5">
+        <div className="flex max-w-[100vw] items-stretch justify-between gap-0 px-0.5 py-1.5">
           {APP_NAV_ITEMS.map((item) => {
             const active = activeTab === item.id;
             return (
@@ -40,7 +41,7 @@ export function MobileBottomNav() {
                   setMobileNavOpen(false);
                 }}
                 className={cn(
-                  'relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1 transition-all duration-200',
+                  'relative flex min-h-[50px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-0 py-1 transition-all duration-200',
                   'active:scale-[0.97]',
                   active
                     ? 'bg-primary/[0.13] text-primary shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] dark:bg-primary/20'

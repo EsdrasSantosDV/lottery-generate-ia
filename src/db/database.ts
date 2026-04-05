@@ -10,14 +10,16 @@ import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
-import { generationSchema, type GenerationDocument } from './schema';
+import { generationSchema, giaSnapshotSchema, type GenerationDocument, type GiaSnapshotDocument } from './schema';
 import { migrateLegacyHistoryIfNeeded } from './migrate-local-storage';
 
 export type GenerationsCollection = RxCollection<GenerationDocument>;
+export type GiaSnapshotsCollection = RxCollection<GiaSnapshotDocument>;
 
 /** Nome novo para não colidir com IndexedDB antigo que tinha coleções de loteria oficial. */
 export type LotteryLabDatabase = RxDatabase<{
   generations: GenerationsCollection;
+  gia_snapshots: GiaSnapshotsCollection;
 }>;
 
 let dbPromise: Promise<LotteryLabDatabase> | null = null;
@@ -35,6 +37,7 @@ async function createDatabase(): Promise<LotteryLabDatabase> {
 
   const db = await createRxDatabase<{
     generations: GenerationsCollection;
+    gia_snapshots: GiaSnapshotsCollection;
   }>({
     name: 'lottery-lab-gen',
     storage,
@@ -44,6 +47,9 @@ async function createDatabase(): Promise<LotteryLabDatabase> {
     generations: {
       schema: generationSchema,
     },
+    gia_snapshots: {
+      schema: giaSnapshotSchema,
+    },
   });
 
   await migrateLegacyHistoryIfNeeded(db);
@@ -52,7 +58,7 @@ async function createDatabase(): Promise<LotteryLabDatabase> {
   return db;
 }
 
-/** Uma única instância do banco (IndexedDB via Dexie) — só histórico de gerações. */
+/** Uma única instância do banco (IndexedDB via Dexie) — gerações e snapshots GIA. */
 export function getDatabase(): Promise<LotteryLabDatabase> {
   if (!dbPromise) {
     dbPromise = createDatabase();

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SYNC_SUPPORTED_MODE_IDS } from '@/lib/caixa-api-paths';
 import { buildFrequenciesFromDraws, frequencyMapToRecord } from '@/lib/caixa-stats';
+import type { GiaDrawRow } from '@/lib/gia-engine';
 import type {
   LotteryDrawDocument,
   LotteryHistoricalStatsDocument,
@@ -205,6 +206,50 @@ export async function fetchHistoricalDezenasForMode(
       if (!Array.isArray(dz)) continue;
       const nums = dz.map((x) => num(x)).filter((n) => Number.isFinite(n));
       out.push(nums);
+    }
+    if (rows.length < DRAW_PAGE) break;
+    from += DRAW_PAGE;
+  }
+  return out;
+}
+
+/**
+ * Sorteios para o GIA: inclui `numero` do concurso e, na Dupla Sena, uma linha por coluna
+ * (`dezenas` e `dezenas_segundo_sorteio`).
+ */
+export async function fetchHistoricalDrawsForGia(
+  sb: SupabaseClient,
+  modeId: string
+): Promise<GiaDrawRow[]> {
+  const mode = LOTTERY_MODES.find((m) => m.id === modeId);
+  const duplaDoisSorteios = mode?.id === 'dupla-sena' && mode.gamesPerBet >= 2;
+
+  const out: GiaDrawRow[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await sb
+      .from('lottery_draws')
+      .select('numero, dezenas, dezenas_segundo_sorteio')
+      .eq('mode_id', modeId)
+      .order('numero')
+      .range(from, from + DRAW_PAGE - 1);
+    if (error) throw error;
+    const rows = data ?? [];
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      const numero = num((row as { numero: unknown }).numero);
+      const dz = (row as { dezenas: unknown }).dezenas;
+      if (Array.isArray(dz)) {
+        const nums = dz.map((x) => num(x)).filter((n) => Number.isFinite(n));
+        out.push({ numero, dezenas: nums });
+      }
+      if (duplaDoisSorteios) {
+        const dz2 = (row as { dezenas_segundo_sorteio: unknown }).dezenas_segundo_sorteio;
+        if (Array.isArray(dz2) && dz2.length > 0) {
+          const nums2 = dz2.map((x) => num(x)).filter((n) => Number.isFinite(n));
+          out.push({ numero, dezenas: nums2 });
+        }
+      }
     }
     if (rows.length < DRAW_PAGE) break;
     from += DRAW_PAGE;
