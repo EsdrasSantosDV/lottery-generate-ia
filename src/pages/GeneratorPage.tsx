@@ -5,6 +5,7 @@ import { LotterySelector } from '@/components/LotterySelector';
 import { WorkerStatusGrid } from '@/components/WorkerStatusGrid';
 import { StatCard } from '@/components/StatCard';
 import { formatNumber, formatDuration } from '@/lib/lottery-utils';
+import { MAX_PARALLEL_WORKERS } from '@/lib/worker-limits';
 import { saveToHistory } from '@/db/history-service';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -18,7 +19,7 @@ export function GeneratorPage() {
   const { selectedMode, setLastResult, setActiveTab } = useAppState();
   const [totalGames, setTotalGames] = useState(100000);
   const [workerCount, setWorkerCount] = useState(4);
-  const maxWorkers = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4;
+  const maxWorkers = MAX_PARALLEL_WORKERS;
 
   const { status, workers, result, elapsedMs, overallProgress, totalProcessed, totalTarget, start, stop, reset } =
     useLotteryGenerator();

@@ -6,6 +6,7 @@ const SHORT_LABELS: Record<string, string> = {
   dashboard: 'Início',
   results: 'Resultados',
   generator: 'Gerador',
+  'cdle-lab': 'CDLE',
   analysis: 'Análise',
   suggestions: 'Dicas',
   history: 'Histórico',
