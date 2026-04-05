@@ -1,5 +1,7 @@
 import { AppProvider, useAppState } from '@/contexts/AppContext';
+import { DatabaseProvider } from '@/contexts/DatabaseContext';
 import { AppSidebar } from '@/components/AppSidebar';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { AppHeader } from '@/components/AppHeader';
 import { MobileNavSheet } from '@/components/MobileNavSheet';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -40,9 +42,11 @@ function AppContent() {
 }
 
 const Index = () => (
-  <AppProvider>
-    <AppContent />
-  </AppProvider>
+  <DatabaseProvider>
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
+  </DatabaseProvider>
 );
 
 export default Index;

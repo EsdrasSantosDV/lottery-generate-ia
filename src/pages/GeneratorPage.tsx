@@ -4,11 +4,13 @@ import { useLotteryGenerator } from '@/hooks/use-lottery-generator';
 import { LotterySelector } from '@/components/LotterySelector';
 import { WorkerStatusGrid } from '@/components/WorkerStatusGrid';
 import { StatCard } from '@/components/StatCard';
-import { saveToHistory, formatNumber, formatDuration } from '@/lib/lottery-utils';
+import { formatNumber, formatDuration } from '@/lib/lottery-utils';
+import { saveToHistory } from '@/db/history-service';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { Play, RotateCcw, Hash, Timer, Zap, Square } from 'lucide-react';
+import { toast } from 'sonner';
 
 const GAME_PRESETS = [1000, 10000, 100000, 500000, 1000000, 5000000];
 
@@ -35,11 +37,28 @@ export function GeneratorPage() {
 
   const savedRef = useRef<number | null>(null);
   useEffect(() => {
-    if (result && status === 'done' && savedRef.current !== result.timestamp) {
-      savedRef.current = result.timestamp;
-      setLastResult(result);
-      saveToHistory(result);
-    }
+    if (!result || status !== 'done' || savedRef.current === result.timestamp) return;
+
+    savedRef.current = result.timestamp;
+    setLastResult(result);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        await saveToHistory(result);
+      } catch (e) {
+        if (!cancelled) {
+          console.error('Falha ao gravar histórico no RxDB:', e);
+          savedRef.current = null;
+          const msg = e instanceof Error ? e.message : String(e);
+          toast.error('Não foi possível guardar no histórico', { description: msg });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [result, status, setLastResult]);
 
   return (

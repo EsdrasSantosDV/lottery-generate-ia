@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
-import {
-  getHistory,
-  clearHistory,
-  formatNumber,
-  formatDuration,
-  formatLotteryDigitLabel,
-} from '@/lib/lottery-utils';
+import { clearHistory, subscribeHistory } from '@/db/history-service';
+import { formatNumber, formatDuration, formatLotteryDigitLabel } from '@/lib/lottery-utils';
 import { LOTTERY_MODES, type HistoryEntry } from '@/lib/lottery-types';
 import { useAppState } from '@/contexts/AppContext';
 import { NumberBadge } from '@/components/NumberBadge';
@@ -18,12 +13,31 @@ export function HistoryPage() {
   const { setLastResult, setActiveTab } = useAppState();
 
   useEffect(() => {
-    setHistory(getHistory());
+    let sub: { unsubscribe: () => void } | undefined;
+    let cancelled = false;
+
+    subscribeHistory((entries) => {
+      if (!cancelled) setHistory(entries);
+    })
+      .then((s) => {
+        if (cancelled) {
+          s.unsubscribe();
+          return;
+        }
+        sub = s;
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([]);
+      });
+
+    return () => {
+      cancelled = true;
+      sub?.unsubscribe();
+    };
   }, []);
 
-  const handleClear = () => {
-    clearHistory();
-    setHistory([]);
+  const handleClear = async () => {
+    await clearHistory();
     setSelected(null);
   };
 

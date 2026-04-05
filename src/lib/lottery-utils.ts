@@ -1,4 +1,4 @@
-import { LOTTERY_MODES, type FrequencyMap, type LotteryMode, type HistoryEntry, type GenerationResult } from './lottery-types';
+import { LOTTERY_MODES, type FrequencyMap, type LotteryMode } from './lottery-types';
 
 export function getRankedFrequencies(freq: FrequencyMap) {
   return Object.entries(freq)
@@ -127,41 +127,3 @@ export function formatDuration(ms: number): string {
   return `${mins}m ${secs}s`;
 }
 
-const HISTORY_KEY = 'lottery-generator-history';
-
-export function saveToHistory(result: GenerationResult): HistoryEntry {
-  const ranked = getRankedFrequencies(result.frequencies);
-  const mode = LOTTERY_MODES.find((m) => m.id === result.modeId) ?? LOTTERY_MODES[0];
-  const k = Math.min(mode.numbersPerGame, ranked.length);
-  const entry: HistoryEntry = {
-    id: crypto.randomUUID(),
-    modeId: result.modeId,
-    modeName: result.modeName,
-    totalGames: result.totalGames,
-    workerCount: result.workerCount,
-    elapsedMs: result.elapsedMs,
-    timestamp: result.timestamp,
-    topNumbers: ranked.slice(0, k),
-    bottomNumbers: ranked.slice(-k).reverse(),
-    frequencies: result.frequencies,
-    sampleGames: result.sampleGames,
-  };
-  const history = getHistory();
-  history.unshift(entry);
-  if (history.length > 50) history.pop();
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-  return entry;
-}
-
-export function getHistory(): HistoryEntry[] {
-  try {
-    const data = localStorage.getItem(HISTORY_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function clearHistory(): void {
-  localStorage.removeItem(HISTORY_KEY);
-}
