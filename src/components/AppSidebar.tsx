@@ -7,12 +7,14 @@ import {
   Dices,
   ChevronLeft,
   ChevronRight,
+  Trophy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppState } from '@/contexts/AppContext';
 
 export const APP_NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'results', label: 'Resultados', icon: Trophy },
   { id: 'generator', label: 'Gerador', icon: Play },
   { id: 'analysis', label: 'Análise', icon: BarChart3 },
   { id: 'suggestions', label: 'Sugestões', icon: Lightbulb },

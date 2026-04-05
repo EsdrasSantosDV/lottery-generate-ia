@@ -11,6 +11,7 @@ import { GeneratorPage } from '@/pages/GeneratorPage';
 import { AnalysisPage } from '@/pages/AnalysisPage';
 import { SuggestionsPage } from '@/pages/SuggestionsPage';
 import { HistoryPage } from '@/pages/HistoryPage';
+import { ResultsPage } from '@/pages/ResultsPage';
 
 function AppContent() {
   const { activeTab } = useAppState();
@@ -18,6 +19,7 @@ function AppContent() {
 
   const pages: Record<string, React.ReactNode> = {
     dashboard: <DashboardPage />,
+    results: <ResultsPage />,
     generator: <GeneratorPage />,
     analysis: <AnalysisPage />,
     suggestions: <SuggestionsPage />,
@@ -33,7 +35,7 @@ function AppContent() {
           <AppSidebar />
         </div>
 
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-4 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] pt-4 md:p-8 md:pb-8">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-4 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] pt-4 md:p-8 md:pb-8">
           <div className="mx-auto w-full max-w-6xl">
             <CaixaSyncBanner
               status={caixaSync.status}

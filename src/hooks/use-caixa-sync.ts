@@ -25,6 +25,14 @@ export type CaixaSyncUiStatus = 'idle' | 'checking' | 'running' | 'done' | 'erro
 /** Evita dois workers; em erro libera para nova tentativa após recarregar. */
 let syncLock = false;
 
+/** `VITE_CAIXA_SYNC_DISABLED=1` (ou `true`/`yes`): não roda sync na montagem — sem fetch da API Caixa nem escrita no Supabase. */
+function isCaixaSyncDisabled(): boolean {
+  const v = import.meta.env.VITE_CAIXA_SYNC_DISABLED as string | undefined;
+  if (v == null || String(v).trim() === '') return false;
+  const s = String(v).trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes';
+}
+
 export function useCaixaSync() {
   const [status, setStatus] = useState<CaixaSyncUiStatus>('idle');
   const [progressLabel, setProgressLabel] = useState<string>('');
@@ -232,6 +240,7 @@ export function useCaixaSync() {
   }, []);
 
   useEffect(() => {
+    if (isCaixaSyncDisabled()) return;
     void runSync();
   }, [runSync]);
 

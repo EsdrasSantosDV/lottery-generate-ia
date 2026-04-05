@@ -234,3 +234,25 @@ export async function recomputeAllHistoricalStats(sb: SupabaseClient): Promise<v
     await recomputeHistoricalStatsForMode(sb, modeId);
   }
 }
+
+export const DRAW_LIST_PAGE = 40;
+
+/** Concursos mais recentes primeiro (`numero` descendente). */
+export async function fetchRecentDrawsPage(
+  sb: SupabaseClient,
+  modeId: string,
+  limit: number,
+  offset: number
+): Promise<LotteryDrawDocument[]> {
+  const lim = Math.min(Math.max(1, limit), 200);
+  const off = Math.max(0, offset);
+  const { data, error } = await sb
+    .from('lottery_draws')
+    .select('*')
+    .eq('mode_id', modeId)
+    .order('numero', { ascending: false })
+    .range(off, off + lim - 1);
+  if (error) throw error;
+  const rows = data ?? [];
+  return rows.map((row) => rowToDraw(row as Record<string, unknown>));
+}
