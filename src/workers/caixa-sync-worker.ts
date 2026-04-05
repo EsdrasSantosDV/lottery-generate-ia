@@ -19,13 +19,13 @@ function delay(ms: number): Promise<void> {
 }
 
 async function fetchJsonWithRetry(url: string, requestDelayMs: number): Promise<unknown> {
-  const maxAttempts = 4;
+  const maxAttempts = 5;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (cancelled) throw new Error('cancelado');
     try {
       const res = await fetch(url, caixaFetchInit);
       if (res.status === 403 || res.status === 429 || res.status >= 500) {
-        await delay(requestDelayMs + 200 * (attempt + 1));
+        await delay(requestDelayMs + 250 * (attempt + 1));
         continue;
       }
       if (!res.ok) {
@@ -35,7 +35,7 @@ async function fetchJsonWithRetry(url: string, requestDelayMs: number): Promise<
       return JSON.parse(text) as unknown;
     } catch (e) {
       if (attempt === maxAttempts - 1) throw e;
-      await delay(requestDelayMs + 150 * (attempt + 1));
+      await delay(requestDelayMs + 200 * (attempt + 1));
     }
   }
   throw new Error('fetch falhou');
@@ -59,62 +59,39 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
   if (data.type !== 'start') return;
 
   void (async () => {
-    const { baseUrl, requestDelayMs, batchSize, modes, backfillFromConcurso } = data;
+    const { baseUrl, requestDelayMs, batchSize, modes } = data;
     cancelled = false;
     post({ type: 'ready' });
 
     try {
-      for (const { modeId, segment, maxNumeroLocal } of modes) {
+      for (const { modeId, segment, contestNumbers, latestRemote } of modes) {
         if (cancelled) break;
 
         await delay(requestDelayMs);
-        let latestJson: unknown;
-        try {
-          latestJson = await fetchJsonWithRetry(buildCaixaContestUrl(baseUrl, segment), requestDelayMs);
-        } catch (err) {
-          post({
-            type: 'mode-error',
-            modeId,
-            message: err instanceof Error ? err.message : String(err),
-          });
-          continue;
-        }
 
-        const latestNorm = normalizeCaixaResultado(latestJson);
-        if (!latestNorm) {
-          post({ type: 'mode-error', modeId, message: 'Resposta inválida (último concurso)' });
-          continue;
-        }
-
-        const latestNum = latestNorm.numero;
-        const start = Math.max(
-          1,
-          backfillFromConcurso != null && Number.isFinite(backfillFromConcurso)
-            ? backfillFromConcurso
-            : maxNumeroLocal + 1
-        );
-        if (start > latestNum) {
+        if (contestNumbers.length === 0) {
           post({
             type: 'mode-done',
             modeId,
-            latestRemote: latestNum,
+            latestRemote,
             fetchedCount: 0,
           });
           continue;
         }
 
-        const total = latestNum - start + 1;
+        const total = contestNumbers.length;
         let pending: LotteryDrawSyncPayload[] = [];
         let fetchedCount = 0;
 
-        for (let n = start; n <= latestNum; n++) {
+        for (let i = 0; i < contestNumbers.length; i++) {
           if (cancelled) break;
+          const n = contestNumbers[i]!;
           await delay(requestDelayMs);
           post({
             type: 'progress',
             modeId,
             phase: 'fetch',
-            current: n - start + 1,
+            current: i + 1,
             total,
           });
 
@@ -164,7 +141,7 @@ ctx.onmessage = (e: MessageEvent<CaixaSyncWorkerIncoming>) => {
         post({
           type: 'mode-done',
           modeId,
-          latestRemote: latestNum,
+          latestRemote,
           fetchedCount,
         });
       }

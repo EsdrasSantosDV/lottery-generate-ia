@@ -5,15 +5,25 @@ import type { CaixaSyncWorkerOutgoing } from '@/lib/caixa-sync-messages';
 import { syncPayloadToDocument } from '@/lib/caixa-dto';
 import {
   bulkUpsertDraws,
+  fetchNumerosPresentUpTo,
   getMaxNumeroForMode,
   recomputeAllHistoricalStats,
   recomputeHistoricalStatsForMode,
   upsertSyncMeta,
 } from '@/lib/lottery-official-supabase';
-import { checkModesUpToDate } from '@/lib/caixa-sync-uptodate';
+import {
+  CAIXA_MAIN_THREAD_GAP_MS,
+  contestRangeInclusive,
+  delay,
+  fetchLatestContestNumber,
+  missingContestNumbers,
+} from '@/lib/caixa-sync-uptodate';
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase-client';
 
 export type CaixaSyncUiStatus = 'idle' | 'checking' | 'running' | 'done' | 'error';
+
+/** Intervalo entre requisições à API dentro do worker (reduz 403/429). */
+const WORKER_REQUEST_DELAY_MS = 350;
 
 /** Evita dois workers; em erro libera para nova tentativa após recarregar. */
 let syncLock = false;
@@ -50,25 +60,6 @@ export function useCaixaSync() {
       setStatus('running');
       const baseUrl = getCaixaApiBase();
 
-      const modes = await Promise.all(
-        SYNC_SUPPORTED_MODE_IDS.map(async (modeId) => {
-          const segment = getSegmentForMode(modeId);
-          if (!segment) return null;
-          const maxNumeroLocal = await getMaxNumeroForMode(sb, modeId);
-          await upsertSyncMeta(sb, {
-            id: modeId,
-            lastConcursoNumero: maxNumeroLocal,
-            totalFetched: 0,
-            status: 'running',
-            lastSyncAt: Date.now(),
-            errorMessage: '',
-          });
-          return { modeId, segment, maxNumeroLocal };
-        })
-      );
-
-      const payload = modes.filter((m): m is NonNullable<typeof m> => m != null);
-
       const backfillRaw = import.meta.env.VITE_CAIXA_BACKFILL_FROM_CONCURSO as string | undefined;
       const backfillParsed =
         backfillRaw != null && String(backfillRaw).trim() !== ''
@@ -76,32 +67,79 @@ export function useCaixaSync() {
           : NaN;
       const backfillFromConcurso = Number.isFinite(backfillParsed) ? backfillParsed : undefined;
 
-      /** Sem backfill: se já há todos os concursos até o último publicado, não inicia o worker. */
-      if (!backfillFromConcurso) {
-        const check = await checkModesUpToDate(baseUrl, payload);
-        if (check.allUpToDate) {
-          for (const m of payload) {
-            const latest = check.latestByModeId.get(m.modeId) ?? m.maxNumeroLocal;
-            await upsertSyncMeta(sb, {
-              id: m.modeId,
-              lastConcursoNumero: latest,
-              totalFetched: 0,
-              status: 'done',
-              lastSyncAt: Date.now(),
-              errorMessage: '',
-            });
-          }
-          syncLock = false;
-          setProgressLabel('');
-          setStatus('done');
-          return;
+      const modesForWorker: {
+        modeId: string;
+        segment: string;
+        contestNumbers: number[];
+        latestRemote: number;
+      }[] = [];
+
+      /** Uma modalidade por vez: Supabase → pausa → API último concurso → lista do que falta. */
+      for (const modeId of SYNC_SUPPORTED_MODE_IDS) {
+        const segment = getSegmentForMode(modeId);
+        if (!segment) continue;
+
+        const maxNumeroLocal = await getMaxNumeroForMode(sb, modeId);
+        await upsertSyncMeta(sb, {
+          id: modeId,
+          lastConcursoNumero: maxNumeroLocal,
+          totalFetched: 0,
+          status: 'running',
+          lastSyncAt: Date.now(),
+          errorMessage: '',
+        });
+
+        await delay(CAIXA_MAIN_THREAD_GAP_MS);
+
+        let latestRemote: number;
+        try {
+          latestRemote = await fetchLatestContestNumber(baseUrl, segment);
+        } catch (e) {
+          await upsertSyncMeta(sb, {
+            id: modeId,
+            lastConcursoNumero: await getMaxNumeroForMode(sb, modeId),
+            totalFetched: 0,
+            status: 'error',
+            lastSyncAt: Date.now(),
+            errorMessage: e instanceof Error ? e.message : String(e),
+          });
+          continue;
         }
+
+        let contestNumbers: number[];
+        if (backfillFromConcurso != null && Number.isFinite(backfillFromConcurso)) {
+          const start = Math.max(1, backfillFromConcurso);
+          contestNumbers = contestRangeInclusive(start, latestRemote);
+        } else {
+          const present = await fetchNumerosPresentUpTo(sb, modeId, latestRemote);
+          contestNumbers = missingContestNumbers(latestRemote, present);
+        }
+
+        if (contestNumbers.length === 0) {
+          await upsertSyncMeta(sb, {
+            id: modeId,
+            lastConcursoNumero: latestRemote,
+            totalFetched: 0,
+            status: 'done',
+            lastSyncAt: Date.now(),
+            errorMessage: '',
+          });
+          continue;
+        }
+
+        modesForWorker.push({ modeId, segment, contestNumbers, latestRemote });
+      }
+
+      if (modesForWorker.length === 0) {
+        syncLock = false;
+        setProgressLabel('');
+        setStatus('done');
+        return;
       }
 
       const worker = new CaixaSyncWorker();
       workerRef.current = worker;
 
-      /** Evita vários upserts em paralelo no mesmo fluxo. */
       let batchWriteQueue = Promise.resolve();
 
       worker.onmessage = async (ev: MessageEvent<CaixaSyncWorkerOutgoing>) => {
@@ -185,10 +223,9 @@ export function useCaixaSync() {
       worker.postMessage({
         type: 'start',
         baseUrl,
-        requestDelayMs: 80,
+        requestDelayMs: WORKER_REQUEST_DELAY_MS,
         batchSize: 40,
-        modes: payload,
-        backfillFromConcurso,
+        modes: modesForWorker,
       });
     } catch (err) {
       syncLock = false;

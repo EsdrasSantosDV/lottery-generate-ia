@@ -26,13 +26,17 @@ export type CaixaSyncWorkerIncoming =
       baseUrl: string;
       requestDelayMs: number;
       batchSize: number;
-      /** Por modalidade: maior concurso já persistido (0 = vazio). */
-      modes: { modeId: string; segment: string; maxNumeroLocal: number }[];
       /**
-       * Se definido, o primeiro concurso buscado é `max(1, backfillFromConcurso)` em vez de `maxLocal+1`
-       * (útil para repreencher premiação em histórico já salvo; pode gerar muitas requisições).
+       * Por modalidade: lista explícita de concursos a buscar (já calculada no main:
+       * faltantes no Supabase + cauda até o último publicado). Evita chamadas duplicadas
+       * ao endpoint "último concurso" e permite só o necessário.
        */
-      backfillFromConcurso?: number;
+      modes: {
+        modeId: string;
+        segment: string;
+        contestNumbers: number[];
+        latestRemote: number;
+      }[];
     }
   | { type: 'cancel' };
 

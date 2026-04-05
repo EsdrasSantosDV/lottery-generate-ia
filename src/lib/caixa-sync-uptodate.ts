@@ -2,45 +2,50 @@ import { buildCaixaContestUrl } from '@/lib/caixa-api-paths';
 import { fetchCaixaJson } from '@/lib/caixa-fetch';
 import { normalizeCaixaResultado } from '@/lib/caixa-schemas';
 
-export type ModePayload = { modeId: string; segment: string; maxNumeroLocal: number };
+/** Intervalo mínimo entre chamadas à API da Caixa (main thread / planejamento do sync). */
+export const CAIXA_MAIN_THREAD_GAP_MS = 400;
+
+export function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 /**
- * Consulta o último concurso publicado por modalidade e compara com o máximo já armazenado (Supabase).
- * Se já estiver tudo trazido (`maxNumeroLocal + 1` > último na API), evita o worker.
+ * Último número de concurso publicado na API (endpoint sem número = último sorteio).
+ * Com retries leves para 403/429.
  */
-export async function checkModesUpToDate(
-  baseUrl: string,
-  modes: ModePayload[]
-): Promise<
-  | { allUpToDate: true; latestByModeId: Map<string, number> }
-  | { allUpToDate: false }
-> {
-  if (modes.length === 0) {
-    return { allUpToDate: true, latestByModeId: new Map() };
+export async function fetchLatestContestNumber(baseUrl: string, segment: string): Promise<number> {
+  const url = buildCaixaContestUrl(baseUrl, segment);
+  const maxAttempts = 5;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const json = await fetchCaixaJson(url);
+      const norm = normalizeCaixaResultado(json);
+      if (!norm) throw new Error('Resposta inválida');
+      return norm.numero;
+    } catch {
+      if (attempt === maxAttempts - 1) throw new Error(`Não foi possível obter o último concurso (${segment})`);
+      await delay(CAIXA_MAIN_THREAD_GAP_MS + 120 * (attempt + 1));
+    }
   }
+  throw new Error('fetchLatestContestNumber');
+}
 
-  const latestByModeId = new Map<string, number>();
+/** Concursos a buscar no backfill: [start..latest] inclusive. */
+export function contestRangeInclusive(start: number, latest: number): number[] {
+  if (start > latest) return [];
+  const out: number[] = [];
+  for (let n = start; n <= latest; n++) out.push(n);
+  return out;
+}
 
-  const results = await Promise.all(
-    modes.map(async ({ modeId, segment, maxNumeroLocal }) => {
-      try {
-        const url = buildCaixaContestUrl(baseUrl, segment);
-        const json = await fetchCaixaJson(url);
-        const norm = normalizeCaixaResultado(json);
-        if (!norm) return { ok: false as const };
-        latestByModeId.set(modeId, norm.numero);
-        const start = Math.max(1, maxNumeroLocal + 1);
-        return { ok: true as const, upToDate: start > norm.numero };
-      } catch {
-        return { ok: false as const };
-      }
-    })
-  );
-
-  for (const r of results) {
-    if (!r.ok) return { allUpToDate: false };
-    if (!r.upToDate) return { allUpToDate: false };
+/**
+ * Concursos em [1..latest] que ainda não existem no banco (lacunas + cauda).
+ */
+export function missingContestNumbers(latest: number, present: ReadonlySet<number>): number[] {
+  if (latest < 1) return [];
+  const out: number[] = [];
+  for (let n = 1; n <= latest; n++) {
+    if (!present.has(n)) out.push(n);
   }
-
-  return { allUpToDate: true, latestByModeId };
+  return out;
 }

@@ -130,6 +130,34 @@ export async function getMaxNumeroForMode(sb: SupabaseClient, modeId: string): P
   return num((data as { numero: unknown }).numero);
 }
 
+/** Todos os `numero` já salvos até `upToInclusive` (para detectar lacunas e só buscar o que falta). */
+export async function fetchNumerosPresentUpTo(
+  sb: SupabaseClient,
+  modeId: string,
+  upToInclusive: number
+): Promise<Set<number>> {
+  const set = new Set<number>();
+  let from = 0;
+  for (;;) {
+    const { data, error } = await sb
+      .from('lottery_draws')
+      .select('numero')
+      .eq('mode_id', modeId)
+      .lte('numero', upToInclusive)
+      .order('numero', { ascending: true })
+      .range(from, from + DRAW_PAGE - 1);
+    if (error) throw error;
+    const rows = data ?? [];
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      set.add(num((row as { numero: unknown }).numero));
+    }
+    if (rows.length < DRAW_PAGE) break;
+    from += DRAW_PAGE;
+  }
+  return set;
+}
+
 export async function bulkUpsertDraws(sb: SupabaseClient, docs: LotteryDrawDocument[]): Promise<void> {
   if (docs.length === 0) return;
   for (const part of chunk(docs, UPSERT_CHUNK)) {
