@@ -6,6 +6,8 @@ import { WorkerStatusGrid } from '@/components/WorkerStatusGrid';
 import { StatCard } from '@/components/StatCard';
 import { formatNumber, formatDuration } from '@/lib/lottery-utils';
 import { MAX_PARALLEL_WORKERS } from '@/lib/worker-limits';
+import { useWorkerCountWithRamDialog } from '@/hooks/use-worker-count-with-ram-dialog';
+import { WorkerRamWarningDialog } from '@/components/WorkerRamWarningDialog';
 import { saveToHistory } from '@/db/history-service';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -18,7 +20,14 @@ const GAME_PRESETS = [1000, 10000, 100000, 500000, 1000000, 5000000];
 export function GeneratorPage() {
   const { selectedMode, setLastResult, setActiveTab } = useAppState();
   const [totalGames, setTotalGames] = useState(100000);
-  const [workerCount, setWorkerCount] = useState(4);
+  const {
+    workerCount,
+    onWorkerSliderChange,
+    confirmHighWorkerCount,
+    dismissRamDialog,
+    ramDialogOpen,
+    pendingWorkerCount,
+  } = useWorkerCountWithRamDialog(4);
   const maxWorkers = MAX_PARALLEL_WORKERS;
 
   const { status, workers, result, elapsedMs, overallProgress, totalProcessed, totalTarget, start, stop, reset } =
@@ -121,7 +130,7 @@ export function GeneratorPage() {
           </label>
           <Slider
             value={[workerCount]}
-            onValueChange={(v) => setWorkerCount(v[0])}
+            onValueChange={onWorkerSliderChange}
             min={1}
             max={maxWorkers}
             step={1}
@@ -153,6 +162,13 @@ export function GeneratorPage() {
           </Button>
         </div>
       </div>
+
+      <WorkerRamWarningDialog
+        open={ramDialogOpen}
+        pendingCount={pendingWorkerCount}
+        onConfirm={confirmHighWorkerCount}
+        onDismiss={dismissRamDialog}
+      />
 
       {/* Processing */}
       {status !== 'idle' && (

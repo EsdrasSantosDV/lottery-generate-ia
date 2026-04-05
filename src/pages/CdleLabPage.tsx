@@ -29,6 +29,8 @@ import {
 } from '@/components/ui/table';
 import { Play, RotateCcw, Square, Sparkles, FlaskConical, AlertTriangle } from 'lucide-react';
 import { MAX_PARALLEL_WORKERS } from '@/lib/worker-limits';
+import { useWorkerCountWithRamDialog } from '@/hooks/use-worker-count-with-ram-dialog';
+import { WorkerRamWarningDialog } from '@/components/WorkerRamWarningDialog';
 
 const CANDIDATE_PRESETS = [
   5_000,
@@ -66,7 +68,14 @@ export function CdleLabPage() {
   const [candidatesInputFocused, setCandidatesInputFocused] = useState(false);
   const [candidatesDraft, setCandidatesDraft] = useState(String(10000));
   const [portfolioSize, setPortfolioSize] = useState(20);
-  const [workerCount, setWorkerCount] = useState(4);
+  const {
+    workerCount,
+    onWorkerSliderChange,
+    confirmHighWorkerCount,
+    dismissRamDialog,
+    ramDialogOpen,
+    pendingWorkerCount,
+  } = useWorkerCountWithRamDialog(4);
   const [overlapRatio, setOverlapRatio] = useState(0.7);
   const [wEntropy, setWEntropy] = useState(30);
   const [wDistribution, setWDistribution] = useState(25);
@@ -282,7 +291,7 @@ export function CdleLabPage() {
           </label>
           <Slider
             value={[workerCount]}
-            onValueChange={(v) => setWorkerCount(v[0])}
+            onValueChange={onWorkerSliderChange}
             min={1}
             max={maxWorkers}
             step={1}
@@ -377,6 +386,13 @@ export function CdleLabPage() {
           </Button>
         </div>
       </div>
+
+      <WorkerRamWarningDialog
+        open={ramDialogOpen}
+        pendingCount={pendingWorkerCount}
+        onConfirm={confirmHighWorkerCount}
+        onDismiss={dismissRamDialog}
+      />
 
       {status !== 'idle' && (
         <div className="space-y-4">
