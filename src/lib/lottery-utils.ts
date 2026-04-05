@@ -1,4 +1,5 @@
-import { LOTTERY_MODES, type FrequencyMap, type LotteryMode } from './lottery-types';
+import { pickRandomSubset, secureRandomInt } from './secure-random';
+import type { FrequencyMap, LotteryMode } from './lottery-types';
 
 export function getRankedFrequencies(freq: FrequencyMap) {
   return Object.entries(freq)
@@ -49,8 +50,9 @@ function suggestPositional(
   }
   const pool = ranked.slice(0, Math.min(10, ranked.length));
   const out: number[] = [];
+  const hi = pool.length - 1;
   for (let i = 0; i < count; i++) {
-    out.push(pool[Math.floor(Math.random() * pool.length)].number);
+    out.push(pool[secureRandomInt(0, hi)].number);
   }
   return out;
 }
@@ -87,13 +89,10 @@ export function generateSuggestion(
     }
     return Array.from(combined).sort((a, b) => a - b);
   }
-  // random shuffle from top pool
   const pool = ranked.slice(0, Math.min(count * 2, ranked.length));
-  const shuffled = pool.sort(() => Math.random() - 0.5);
-  return shuffled
-    .slice(0, count)
-    .map((r) => r.number)
-    .sort((a, b) => a - b);
+  const k = Math.min(count, pool.length);
+  const picked = pickRandomSubset(pool, k);
+  return picked.map((r) => r.number).sort((a, b) => a - b);
 }
 
 /** Total de sorteios de números (apostas × jogos por aposta × números por jogo). */

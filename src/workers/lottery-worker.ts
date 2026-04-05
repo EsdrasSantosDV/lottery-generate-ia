@@ -1,36 +1,9 @@
 /// <reference lib="webworker" />
 
 import type { WorkerMessage, FrequencyMap, LotteryGameKind } from '../lib/lottery-types';
+import { secureRandomInt } from '../lib/secure-random';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
-
-/**
- * Inteiro uniforme em [min, max] sem viés de módulo.
- * Prioriza Web Crypto API (CSPRNG); fallback com Math.random + rejection sampling.
- */
-function secureRandomInt(min: number, max: number): number {
-  const range = max - min + 1;
-  if (range <= 0) {
-    throw new RangeError('secureRandomInt: intervalo inválido');
-  }
-  if (range === 1) return min;
-
-  const limit = Math.floor(0x1_0000_0000 / range) * range;
-
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const buf = new Uint32Array(1);
-    for (;;) {
-      crypto.getRandomValues(buf);
-      const x = buf[0];
-      if (x < limit) return min + (x % range);
-    }
-  }
-
-  for (;;) {
-    const x = Math.floor(Math.random() * 0x1_0000_0000);
-    if (x < limit) return min + (x % range);
-  }
-}
 
 /**
  * Um jogo: combinação aleatória uniforme entre todas as C(n,k) possíveis
